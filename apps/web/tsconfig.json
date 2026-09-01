@@ -8,6 +8,7 @@
     "plugins": [{ "name": "next" }],
     "incremental": true,
     "allowJs": false,
+    "baseUrl": ".",
     "paths": { "@/*": ["./src/*"] }
   },
   "include": ["next-env.d.ts", "src/**/*.ts", "src/**/*.tsx", ".next/types/**/*.ts"],
