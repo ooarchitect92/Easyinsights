@@ -1,4 +1,4 @@
-name: Apply targeted type fixes
+name: Snapshot and diagnose current branch
 
 on:
   push:
@@ -6,17 +6,41 @@ on:
       - codex/easyinsights-production-20260901
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  repair-and-check:
+  snapshot:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Verify clean checkout paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "HEAD=$(git rev-parse HEAD)"
+          echo "Tracked generated artifacts:"
+          git ls-files | grep -E '(^|/)(\.next|dist|node_modules)/|tsbuildinfo$' || true
+          echo "Tracked web route files:"
+          git ls-files 'apps/web/src/app/**' | sort
+          echo "Unexpected diagnostic paths:"
+          find . -type f \( -path '*\(auth\)*' -o -path '*customerId*' -o -path '*reports/custom*' -o -path '*packages/ui*' \) -print || true
+
+      - name: Package exact tracked source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git archive --format=tar.gz --output=/tmp/easyinsights-current-source.tar.gz HEAD
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: easyinsights-current-source
+          path: /tmp/easyinsights-current-source.tar.gz
+          retention-days: 3
 
       - uses: actions/setup-node@v4
         with:
@@ -26,64 +50,19 @@ jobs:
 
       - run: npm ci --no-audit --no-fund
 
-      - name: Apply strict TypeScript corrections
+      - name: Run clean web typecheck diagnostic
         shell: bash
         run: |
-          python <<'PY'
-          from pathlib import Path
-          import json
+          set -o pipefail
+          rm -rf apps/web/.next apps/web/tsconfig.tsbuildinfo
+          find apps/web -name '*.tsbuildinfo' -delete
+          npm run build:packages
+          npm run typecheck -w @easyinsights/web 2>&1 | tee /tmp/web-typecheck.log
 
-          cache_path = Path('packages/core/src/cache.ts')
-          cache = cache_path.read_text()
-          cache = cache.replace("import Redis from 'ioredis';", "import { Redis } from 'ioredis';", 1)
-          cache = cache.replace('retryStrategy: (times) =>', 'retryStrategy: (times: number) =>', 1)
-          cache_path.write_text(cache)
-
-          platform_path = Path('packages/core/src/platform.ts')
-          platform = platform_path.read_text()
-          old_find = ".find(tenantFilter(input.scope), { session: input.session })"
-          new_find = ".find(\n      tenantFilter(input.scope),\n      input.session ? { session: input.session } : undefined,\n    )"
-          if old_find not in platform:
-              raise SystemExit('Expected audit find options were not found')
-          platform = platform.replace(old_find, new_find, 1)
-          old_insert = "    { session: input.session },\n  );"
-          new_insert = "    input.session ? { session: input.session } : undefined,\n  );"
-          if old_insert not in platform:
-              raise SystemExit('Expected audit insert options were not found')
-          platform_path.write_text(platform.replace(old_insert, new_insert, 1))
-
-          queue_path = Path('packages/core/src/queue.ts')
-          queue = queue_path.read_text()
-          old_queue = "insertOne(doc, { session });"
-          if old_queue not in queue:
-              raise SystemExit('Expected outbox insert options were not found')
-          queue_path.write_text(queue.replace(old_queue, "insertOne(doc, session ? { session } : undefined);", 1))
-
-          package_path = Path('package.json')
-          package = json.loads(package_path.read_text())
-          package['scripts']['typecheck'] = (
-              'npm run build:packages && '
-              'npm run typecheck -w @easyinsights/web && '
-              'npm run typecheck -w @easyinsights/worker'
-          )
-          package_path.write_text(json.dumps(package, indent=2) + '\n')
-          PY
-
-      - name: Format affected files
-        run: npx prettier --write package.json packages/core/src/cache.ts packages/core/src/platform.ts packages/core/src/queue.ts
-
-      - run: npm run lint
-
-      - name: Commit strict TypeScript corrections
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package.json packages/core/src/cache.ts packages/core/src/platform.ts packages/core/src/queue.ts
-          git commit -m "fix: satisfy strict TypeScript contracts in core runtime"
-          git push origin "HEAD:${GITHUB_REF_NAME}"
-
-      - run: npm run typecheck
-      - run: npm run test
-      - run: npm run build
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: easyinsights-web-typecheck-log
+          path: /tmp/web-typecheck.log
+          if-no-files-found: ignore
+          retention-days: 3
