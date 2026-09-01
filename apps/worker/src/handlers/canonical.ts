@@ -1,10 +1,4 @@
-import type {
-  ClientSession,
-  Db,
-  Document,
-  Filter,
-  UpdateFilter,
-} from 'mongodb';
+import type { ClientSession, Db, Document, Filter, UpdateFilter } from 'mongodb';
 import { opaqueToken, tenantFilter } from '@easyinsights/core';
 import type { RuntimeMessage } from '../message.js';
 import { requiredString } from './shared.js';
