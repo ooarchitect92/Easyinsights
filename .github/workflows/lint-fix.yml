@@ -1,0 +1,109 @@
+name: Apply targeted lint fixes
+
+on:
+  push:
+    branches:
+      - codex/easyinsights-production-20260901
+
+permissions:
+  contents: write
+
+jobs:
+  repair-and-check:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.14.0
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - run: npm ci --no-audit --no-fund
+
+      - name: Apply behavior-preserving lint corrections
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          replacements = {
+              'apps/web/src/app/api/v1/events/route.ts': [
+                  ('  withTransaction,\n', ''),
+              ],
+              'apps/web/src/app/api/v1/organizations/route.ts': [
+                  ("import { publicDocument, tenantFilter } from '@easyinsights/core';", "import { publicDocument } from '@easyinsights/core';"),
+              ],
+              'apps/web/src/app/api/v1/webhooks/[connectorId]/route.ts': [
+                  ('  tenantFilter,\n', ''),
+              ],
+              'apps/web/src/server/data.ts': [
+                  ("import type { Document, Sort } from 'mongodb';", "import type { Sort } from 'mongodb';"),
+              ],
+              'apps/worker/src/handlers/audience.ts': [
+                  ("import { config, enqueueEvent, opaqueToken, tenantFilter } from '@easyinsights/core';", "import { config, opaqueToken, tenantFilter } from '@easyinsights/core';"),
+              ],
+          }
+
+          for file_name, file_replacements in replacements.items():
+              path = Path(file_name)
+              value = path.read_text()
+              for old, new in file_replacements:
+                  if old not in value:
+                      raise SystemExit(f'Expected text not found in {file_name}: {old!r}')
+                  value = value.replace(old, new, 1)
+              path.write_text(value)
+
+          cache_path = Path('packages/core/src/cache.ts')
+          cache = cache_path.read_text()
+          old = '    } catch {}'
+          replacement = "    } catch {\n      // Redis is an optional acceleration layer; MongoDB remains authoritative.\n    }"
+          if cache.count(old) != 4:
+              raise SystemExit(f'Expected four Redis fallback catches, found {cache.count(old)}')
+          cache_path.write_text(cache.replace(old, replacement))
+
+          validation_path = Path('scripts/validate-repository.mjs')
+          validation = validation_path.read_text()
+          directive = '/* global console, process */\n'
+          if not validation.startswith(directive):
+              validation_path.write_text(directive + validation)
+          PY
+
+      - name: Format affected files
+        run: |
+          npx prettier --write \
+            apps/web/src/app/api/v1/events/route.ts \
+            apps/web/src/app/api/v1/organizations/route.ts \
+            'apps/web/src/app/api/v1/webhooks/[connectorId]/route.ts' \
+            apps/web/src/server/data.ts \
+            apps/worker/src/handlers/audience.ts \
+            packages/core/src/cache.ts \
+            scripts/validate-repository.mjs
+
+      - run: npm run lint
+
+      - name: Commit lint corrections
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            apps/web/src/app/api/v1/events/route.ts \
+            apps/web/src/app/api/v1/organizations/route.ts \
+            'apps/web/src/app/api/v1/webhooks/[connectorId]/route.ts' \
+            apps/web/src/server/data.ts \
+            apps/worker/src/handlers/audience.ts \
+            packages/core/src/cache.ts \
+            scripts/validate-repository.mjs
+          git commit -m "fix: resolve lint errors in API, cache, and validation modules"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+
+      - run: npm run typecheck
+      - run: npm run test
+      - run: npm run build
