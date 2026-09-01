@@ -1,7 +1,40 @@
-import type { ClientSession, Db, Document } from 'mongodb';
+import type {
+  ClientSession,
+  Db,
+  Document,
+  Filter,
+  UpdateFilter,
+} from 'mongodb';
 import { opaqueToken, tenantFilter } from '@easyinsights/core';
 import type { RuntimeMessage } from '../message.js';
 import { requiredString } from './shared.js';
+
+type JourneyTouchpoint = {
+  eventId: string;
+  eventName: string;
+  source: string;
+  medium?: string;
+  campaignId?: string;
+  eventTime: Date | string;
+};
+
+type JourneyRecord = {
+  id: string;
+  organizationId: string;
+  workspaceId: string;
+  profileId: string;
+  firstSource: string;
+  firstTouchAt: Date | string;
+  lastSource: string;
+  lastTouchAt: Date | string;
+  converted: boolean;
+  conversionEvent: string | null;
+  touchpointCount: number;
+  touchpoints: JourneyTouchpoint[];
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 function identifierClauses(event: Document): Document[] {
   const ids = event.identifiers as Document | undefined;
   const clauses: Document[] = [];
@@ -12,6 +45,7 @@ function identifierClauses(event: Document): Document[] {
   if (event.anonymousId) clauses.push({ anonymousIds: event.anonymousId });
   return clauses;
 }
+
 export async function handleCanonical(
   db: Db,
   session: ClientSession,
@@ -102,48 +136,54 @@ export async function handleCanonical(
     },
     { session },
   );
-  await db.collection('journeys').updateOne(
-    { ...scope, profileId: profile.id },
-    {
-      $setOnInsert: {
-        id: `jny_${opaqueToken(12)}`,
-        ...message.scope,
-        profileId: profile.id,
-        firstSource: event.campaign?.source ?? event.source,
-        firstTouchAt: event.eventTime,
-        createdAt: now,
-      },
-      $set: {
-        lastSource: event.campaign?.source ?? event.source,
-        lastTouchAt: event.eventTime,
-        converted: Boolean(
-          event.eventName.includes('payment') || event.eventName.includes('purchase'),
-        ),
-        conversionEvent:
-          event.eventName.includes('payment') || event.eventName.includes('purchase')
-            ? event.eventName
-            : null,
-        updatedAt: now,
-      },
-      $inc: { touchpointCount: 1 },
-      $push: {
-        touchpoints: {
-          $each: [
-            {
-              eventId,
-              eventName: event.eventName,
-              source: event.campaign?.source ?? event.source,
-              medium: event.campaign?.medium,
-              campaignId: event.campaign?.campaignId,
-              eventTime: event.eventTime,
-            },
-          ],
-          $slice: -500,
-        },
+
+  const eventName = String(event.eventName);
+  const source = String(event.campaign?.source ?? event.source ?? 'unknown');
+  const profileId = String(profile.id);
+  const touchpoint: JourneyTouchpoint = {
+    eventId,
+    eventName,
+    source,
+    eventTime: event.eventTime as Date | string,
+    ...(event.campaign?.medium ? { medium: String(event.campaign.medium) } : {}),
+    ...(event.campaign?.campaignId
+      ? { campaignId: String(event.campaign.campaignId) }
+      : {}),
+  };
+  const journeyFilter: Filter<JourneyRecord> = {
+    organizationId: message.scope.organizationId,
+    workspaceId: message.scope.workspaceId,
+    profileId,
+  };
+  const journeyUpdate: UpdateFilter<JourneyRecord> = {
+    $setOnInsert: {
+      id: `jny_${opaqueToken(12)}`,
+      ...message.scope,
+      profileId,
+      firstSource: source,
+      firstTouchAt: event.eventTime as Date | string,
+      createdAt: now,
+    },
+    $set: {
+      lastSource: source,
+      lastTouchAt: event.eventTime as Date | string,
+      converted: Boolean(eventName.includes('payment') || eventName.includes('purchase')),
+      conversionEvent:
+        eventName.includes('payment') || eventName.includes('purchase') ? eventName : null,
+      updatedAt: now,
+    },
+    $inc: { touchpointCount: 1 },
+    $push: {
+      touchpoints: {
+        $each: [touchpoint],
+        $slice: -500,
       },
     },
-    { upsert: true, session },
-  );
+  };
+  await db
+    .collection<JourneyRecord>('journeys')
+    .updateOne(journeyFilter, journeyUpdate, { upsert: true, session });
+
   const findings = [] as Document[];
   if (!event.customerId && !event.anonymousId)
     findings.push({
