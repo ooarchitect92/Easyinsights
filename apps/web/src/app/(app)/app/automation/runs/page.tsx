@@ -1,20 +1,25 @@
 import { CapabilityPage, StatusBadge } from '@/components/capability-page';
 import { requireServerPrincipal } from '@/server/auth';
 import { listDocuments, text } from '@/server/data';
+
 export default async function Runs() {
-  const p = await requireServerPrincipal('workflow:read');
+  const principal = await requireServerPrincipal('workflow:read');
   const [workflows, agents, connectors] = await Promise.all([
-    listDocuments(p, 'workflow_runs', 50, { createdAt: -1 }),
-    listDocuments(p, 'agent_runs', 50, { createdAt: -1 }),
-    listDocuments(p, 'connector_runs', 50, { createdAt: -1 }),
+    listDocuments(principal, 'workflow_runs', 50, { createdAt: -1 }),
+    listDocuments(principal, 'agent_runs', 50, { createdAt: -1 }),
+    listDocuments(principal, 'connector_runs', 50, { createdAt: -1 }),
   ]);
-  const rows: Record<string, unknown>[] = [
-    ...workflows.map((r) => ({ ...r, runType: 'workflow' })),
-    ...agents.map((r) => ({ ...r, runType: 'agent' })),
-    ...connectors.map((r) => ({ ...r, runType: 'connector' })),
-  ]
-    .sort((a, b) => String(b['createdAt']).localeCompare(String(a['createdAt'])))
+
+  const runs: Record<string, unknown>[] = [
+    ...workflows.map((run) => ({ ...run, runType: 'workflow' })),
+    ...agents.map((run) => ({ ...run, runType: 'agent' })),
+    ...connectors.map((run) => ({ ...run, runType: 'connector' })),
+  ];
+
+  const rows = runs
+    .sort((a, b) => String(b['createdAt'] ?? '').localeCompare(String(a['createdAt'] ?? '')))
     .slice(0, 100);
+
   return (
     <CapabilityPage
       eyebrow="Execution evidence"
@@ -25,13 +30,21 @@ export default async function Runs() {
         {
           key: 'name',
           label: 'Name',
-          render: (r) => text(r.name, text(r.agentId ?? r.workflowId)),
+          render: (row) => text(row.name, text(row.agentId ?? row.workflowId)),
         },
-        { key: 'status', label: 'Status', render: (r) => <StatusBadge value={r.status} /> },
+        {
+          key: 'status',
+          label: 'Status',
+          render: (row) => <StatusBadge value={row.status} />,
+        },
         { key: 'attempt', label: 'Attempt' },
         { key: 'correlationId', label: 'Correlation ID' },
-        { key: 'createdAt', label: 'Created', render: (r) => text(r.createdAt) },
-        { key: 'completedAt', label: 'Completed', render: (r) => text(r.completedAt, '—') },
+        { key: 'createdAt', label: 'Created', render: (row) => text(row.createdAt) },
+        {
+          key: 'completedAt',
+          label: 'Completed',
+          render: (row) => text(row.completedAt, '—'),
+        },
       ]}
       rows={rows}
     />
