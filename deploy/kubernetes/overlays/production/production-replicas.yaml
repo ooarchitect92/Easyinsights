@@ -1,0 +1,14 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: easyinsights-web }
+spec: { replicas: 3 }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: easyinsights-outbox }
+spec: { replicas: 2 }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: easyinsights-consumer }
+spec: { replicas: 4 }

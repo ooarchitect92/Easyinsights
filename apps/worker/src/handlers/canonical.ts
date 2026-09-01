@@ -1,0 +1,197 @@
+import type { ClientSession, Db, Document } from 'mongodb';
+import { opaqueToken, tenantFilter } from '@easyinsights/core';
+import type { RuntimeMessage } from '../message.js';
+import { requiredString } from './shared.js';
+function identifierClauses(event: Document): Document[] {
+  const ids = event.identifiers as Document | undefined;
+  const clauses: Document[] = [];
+  if (ids?.emailHash) clauses.push({ primaryEmailHash: ids.emailHash });
+  if (ids?.phoneHash) clauses.push({ primaryPhoneHash: ids.phoneHash });
+  if (ids?.externalId) clauses.push({ externalIds: ids.externalId });
+  if (event.customerId) clauses.push({ externalIds: event.customerId });
+  if (event.anonymousId) clauses.push({ anonymousIds: event.anonymousId });
+  return clauses;
+}
+export async function handleCanonical(
+  db: Db,
+  session: ClientSession,
+  message: RuntimeMessage,
+): Promise<void> {
+  const eventId = requiredString(message.payload.eventId, 'eventId');
+  const scope = tenantFilter(message.scope);
+  const event = await db
+    .collection('canonical_events')
+    .findOne({ ...scope, id: eventId }, { session });
+  if (!event) throw new Error(`Canonical event ${eventId} was not found`);
+  const clauses = identifierClauses(event);
+  let profile: Document | null = clauses.length
+    ? await db.collection('customer_profiles').findOne({ ...scope, $or: clauses }, { session })
+    : null;
+  const now = new Date();
+  let decision = 'created';
+  if (!profile) {
+    const profileId = `cus_${opaqueToken(12)}`;
+    const ids = event.identifiers as Document | undefined;
+    const profileDoc = {
+      id: profileId,
+      ...message.scope,
+      displayName: String(
+        event.properties?.name ?? event.properties?.fullName ?? 'Anonymous customer',
+      ),
+      primaryEmailHash: ids?.emailHash,
+      primaryPhoneHash: ids?.phoneHash,
+      externalIds: [...new Set([ids?.externalId, event.customerId].filter(Boolean))],
+      anonymousIds: event.anonymousId ? [event.anonymousId] : [],
+      consent: event.consent,
+      firstTouchSource: event.campaign?.source ?? event.source,
+      latestTouchSource: event.campaign?.source ?? event.source,
+      firstSeenAt: event.eventTime,
+      lastSeenAt: event.eventTime,
+      stage: event.eventName.includes('qualified') ? 'qualified' : 'new',
+      leadScore: event.eventName.includes('qualified') ? 80 : 25,
+      leadGrade: event.eventName.includes('qualified') ? 'A' : 'C',
+      lifetimeValue: Number(event.properties?.value ?? event.properties?.estimatedValue ?? 0),
+      traits: {},
+      identityEvidence: clauses.map((clause) => Object.keys(clause)[0]),
+      createdAt: now,
+      updatedAt: now,
+      dataClassification: 'restricted',
+    };
+    await db.collection('customer_profiles').insertOne(profileDoc, { session });
+    profile = profileDoc;
+    decision = 'created';
+  } else {
+    decision = 'merged';
+    const ids = event.identifiers as Document | undefined;
+    const update: Document = {
+      $set: {
+        latestTouchSource: event.campaign?.source ?? event.source,
+        lastSeenAt: event.eventTime,
+        consent: event.consent,
+        updatedAt: now,
+      },
+      $addToSet: {
+        externalIds: { $each: [ids?.externalId, event.customerId].filter(Boolean) },
+        anonymousIds: { $each: [event.anonymousId].filter(Boolean) },
+      },
+    };
+    if (event.eventName.includes('qualified'))
+      Object.assign(update.$set as Document, {
+        stage: 'qualified',
+        leadScore: Math.max(Number(profile.leadScore ?? 0), 80),
+        leadGrade: 'A',
+      });
+    if (event.eventName.includes('payment') || event.eventName.includes('purchase'))
+      Object.assign(update.$set as Document, {
+        stage: 'customer',
+        lifetimeValue: Number(profile.lifetimeValue ?? 0) + Number(event.properties?.value ?? 0),
+      });
+    await db.collection('customer_profiles').updateOne({ id: profile.id }, update, { session });
+  }
+  const matchedOn = clauses.flatMap((clause) => Object.keys(clause));
+  await db
+    .collection('identity_decisions')
+    .insertOne(
+      {
+        id: `idn_${opaqueToken(12)}`,
+        ...message.scope,
+        eventId,
+        profileId: profile.id,
+        decision,
+        matchedOn,
+        confidence: matchedOn.length ? 1 : 0.5,
+        createdAt: now,
+      },
+      { session },
+    );
+  await db
+    .collection('journeys')
+    .updateOne(
+      { ...scope, profileId: profile.id },
+      {
+        $setOnInsert: {
+          id: `jny_${opaqueToken(12)}`,
+          ...message.scope,
+          profileId: profile.id,
+          firstSource: event.campaign?.source ?? event.source,
+          firstTouchAt: event.eventTime,
+          createdAt: now,
+        },
+        $set: {
+          lastSource: event.campaign?.source ?? event.source,
+          lastTouchAt: event.eventTime,
+          converted: Boolean(
+            event.eventName.includes('payment') || event.eventName.includes('purchase'),
+          ),
+          conversionEvent:
+            event.eventName.includes('payment') || event.eventName.includes('purchase')
+              ? event.eventName
+              : null,
+          updatedAt: now,
+        },
+        $inc: { touchpointCount: 1 },
+        $push: {
+          touchpoints: {
+            $each: [
+              {
+                eventId,
+                eventName: event.eventName,
+                source: event.campaign?.source ?? event.source,
+                medium: event.campaign?.medium,
+                campaignId: event.campaign?.campaignId,
+                eventTime: event.eventTime,
+              },
+            ],
+            $slice: -500,
+          },
+        },
+      },
+      { upsert: true, session },
+    );
+  const findings = [] as Document[];
+  if (!event.customerId && !event.anonymousId)
+    findings.push({
+      title: 'Event has no customer or anonymous identifier',
+      category: 'identity',
+      severity: 'warning',
+      impactScore: 65,
+    });
+  if (
+    !event.campaign?.campaignId &&
+    ['ad_click', 'lead_created', 'qualified_lead'].includes(String(event.eventName))
+  )
+    findings.push({
+      title: 'Campaign ID is missing on a marketing event',
+      category: 'campaign_mapping',
+      severity: 'warning',
+      impactScore: 55,
+    });
+  if (event.consent?.advertising !== true && String(event.eventName).includes('qualified'))
+    findings.push({
+      title: 'Qualified lead is not eligible for advertising activation',
+      category: 'consent',
+      severity: 'info',
+      impactScore: 35,
+    });
+  for (const finding of findings)
+    await db
+      .collection('quality_findings')
+      .insertOne(
+        {
+          id: `qf_${opaqueToken(12)}`,
+          ...message.scope,
+          eventId,
+          status: 'open',
+          createdAt: now,
+          ...finding,
+        },
+        { session },
+      );
+  await db
+    .collection('canonical_events')
+    .updateOne(
+      { id: eventId },
+      { $set: { profileId: profile.id, processingStatus: 'processed', processedAt: now } },
+      { session },
+    );
+}

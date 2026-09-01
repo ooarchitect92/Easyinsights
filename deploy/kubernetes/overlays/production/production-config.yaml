@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: easyinsights-config }
+data:
+  APP_BASE_URL: https://marketing.example.com
+  KAFKA_CLIENT_ID: easyinsights-production
+  KAFKA_GROUP_ID: easyinsights-production-consumer
+  LIVE_ACTIVATION_ENABLED: 'false'
