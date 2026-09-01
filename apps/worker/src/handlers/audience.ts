@@ -86,21 +86,19 @@ export async function handleAudience(
       })),
       { session },
     );
-  await db
-    .collection('audiences')
-    .updateOne(
-      { ...scope, id: audienceId },
-      {
-        $set: {
-          status: 'active',
-          memberCount: matched.length,
-          eligibleCount: eligible.length,
-          lastEvaluatedAt: now,
-          updatedAt: now,
-        },
+  await db.collection('audiences').updateOne(
+    { ...scope, id: audienceId },
+    {
+      $set: {
+        status: 'active',
+        memberCount: matched.length,
+        eligibleCount: eligible.length,
+        lastEvaluatedAt: now,
+        updatedAt: now,
       },
-      { session },
-    );
+    },
+    { session },
+  );
   await markRun(db, session, 'audience_runs', runId, 'completed', {
     completedAt: now,
     memberCount: matched.length,
@@ -109,51 +107,47 @@ export async function handleAudience(
   });
   if (run.dryRun !== true && run.destinationConnectorId) {
     const activationId = `act_${opaqueToken(12)}`;
-    await db
-      .collection('activation_runs')
-      .insertOne(
-        {
-          id: activationId,
-          ...message.scope,
-          type: 'audience_sync',
-          destinationConnectorId: run.destinationConnectorId,
-          payload: { audienceId, profileIds: eligible.map((profile) => profile.id) },
-          dryRun: false,
-          idempotencyKey: `audience:${audienceId}:${now.toISOString()}`,
-          status: 'awaiting_approval',
-          createdBy: message.actorId,
-          createdAt: now,
-          updatedAt: now,
-          expiresAt: new Date(now.getTime() + config.runTtlDays * 86400000),
-        },
-        { session },
-      );
+    await db.collection('activation_runs').insertOne(
+      {
+        id: activationId,
+        ...message.scope,
+        type: 'audience_sync',
+        destinationConnectorId: run.destinationConnectorId,
+        payload: { audienceId, profileIds: eligible.map((profile) => profile.id) },
+        dryRun: false,
+        idempotencyKey: `audience:${audienceId}:${now.toISOString()}`,
+        status: 'awaiting_approval',
+        createdBy: message.actorId,
+        createdAt: now,
+        updatedAt: now,
+        expiresAt: new Date(now.getTime() + config.runTtlDays * 86400000),
+      },
+      { session },
+    );
     const approvalId = `apr_${opaqueToken(12)}`;
-    await db
-      .collection('approvals')
-      .insertOne(
-        {
-          id: approvalId,
-          ...message.scope,
-          title: `Approve audience sync: ${String(audience.name)}`,
-          targetType: 'activation',
-          targetId: activationId,
-          riskLevel: 'high',
-          requestedBy: message.actorId,
-          predictedImpact: `${eligible.length} customer profiles may be sent to an external destination`,
-          evidence: {
-            audienceId,
-            eligibleCount: eligible.length,
-            excludedCount: matched.length - eligible.length,
-          },
-          rollbackPlan: 'Remove or suppress the synchronized audience at the destination.',
-          status: 'pending',
-          createdAt: now,
-          updatedAt: now,
-          expiresAt: new Date(now.getTime() + config.runTtlDays * 86400000),
+    await db.collection('approvals').insertOne(
+      {
+        id: approvalId,
+        ...message.scope,
+        title: `Approve audience sync: ${String(audience.name)}`,
+        targetType: 'activation',
+        targetId: activationId,
+        riskLevel: 'high',
+        requestedBy: message.actorId,
+        predictedImpact: `${eligible.length} customer profiles may be sent to an external destination`,
+        evidence: {
+          audienceId,
+          eligibleCount: eligible.length,
+          excludedCount: matched.length - eligible.length,
         },
-        { session },
-      );
+        rollbackPlan: 'Remove or suppress the synchronized audience at the destination.',
+        status: 'pending',
+        createdAt: now,
+        updatedAt: now,
+        expiresAt: new Date(now.getTime() + config.runTtlDays * 86400000),
+      },
+      { session },
+    );
     await db
       .collection('activation_runs')
       .updateOne({ id: activationId }, { $set: { approvalId } }, { session });

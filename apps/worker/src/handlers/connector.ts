@@ -40,21 +40,19 @@ export async function handleConnector(
       'A production provider adapter must be configured for live synchronization.';
   }
   const now = new Date();
-  await db
-    .collection('connectors')
-    .updateOne(
-      { ...scope, id: connectorId },
-      {
-        $set: {
-          status,
-          healthScore: score,
-          lastCheckedAt: now,
-          lastSyncAt: runStatus === 'completed' ? now : connector.lastSyncAt,
-          updatedAt: now,
-          diagnostics,
-        },
+  await db.collection('connectors').updateOne(
+    { ...scope, id: connectorId },
+    {
+      $set: {
+        status,
+        healthScore: score,
+        lastCheckedAt: now,
+        lastSyncAt: runStatus === 'completed' ? now : connector.lastSyncAt,
+        updatedAt: now,
+        diagnostics,
       },
-      { session },
-    );
+    },
+    { session },
+  );
   await markRun(db, session, 'connector_runs', runId, runStatus, { completedAt: now, diagnostics });
 }

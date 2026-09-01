@@ -33,22 +33,20 @@ export async function POST(request: Request) {
       return withTransaction(async (db, session) => {
         const id = `atr_${opaqueToken(12)}`;
         const now = new Date();
-        await db
-          .collection('attribution_runs')
-          .insertOne(
-            {
-              id,
-              ...principal.tenant,
-              ...input,
-              status: 'queued',
-              modelVersion: 'attribution-v1',
-              createdBy: principal.userId,
-              createdAt: now,
-              updatedAt: now,
-              expiresAt: retentionDate(config.runTtlDays),
-            },
-            { session },
-          );
+        await db.collection('attribution_runs').insertOne(
+          {
+            id,
+            ...principal.tenant,
+            ...input,
+            status: 'queued',
+            modelVersion: 'attribution-v1',
+            createdBy: principal.userId,
+            createdAt: now,
+            updatedAt: now,
+            expiresAt: retentionDate(config.runTtlDays),
+          },
+          { session },
+        );
         await enqueueEvent(
           db,
           {

@@ -19,21 +19,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             'The requester cannot approve or reject their own high-risk action.',
           );
         const now = new Date();
-        const update = await db
-          .collection('approvals')
-          .updateOne(
-            { ...tenantFilter(principal.tenant), id, status: 'pending' },
-            {
-              $set: {
-                status: input.decision,
-                decisionReason: input.reason,
-                decidedBy: principal.userId,
-                decidedAt: now,
-                updatedAt: now,
-              },
+        const update = await db.collection('approvals').updateOne(
+          { ...tenantFilter(principal.tenant), id, status: 'pending' },
+          {
+            $set: {
+              status: input.decision,
+              decisionReason: input.reason,
+              decidedBy: principal.userId,
+              decidedAt: now,
+              updatedAt: now,
             },
-            { session },
-          );
+          },
+          { session },
+        );
         if (update.modifiedCount !== 1)
           throw new ApiError(
             409,

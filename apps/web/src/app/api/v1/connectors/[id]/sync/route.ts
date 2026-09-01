@@ -20,22 +20,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         if (!connector) throw new ApiError(404, 'NOT_FOUND', 'Connector not found.');
         const runId = `crun_${opaqueToken(12)}`;
         const now = new Date();
-        await db
-          .collection('connector_runs')
-          .insertOne(
-            {
-              id: runId,
-              ...principal.tenant,
-              connectorId: id,
-              name: connector.name,
-              status: 'queued',
-              attempt: 0,
-              createdAt: now,
-              updatedAt: now,
-              expiresAt: retentionDate(config.runTtlDays),
-            },
-            { session },
-          );
+        await db.collection('connector_runs').insertOne(
+          {
+            id: runId,
+            ...principal.tenant,
+            connectorId: id,
+            name: connector.name,
+            status: 'queued',
+            attempt: 0,
+            createdAt: now,
+            updatedAt: now,
+            expiresAt: retentionDate(config.runTtlDays),
+          },
+          { session },
+        );
         await enqueueEvent(
           db,
           {

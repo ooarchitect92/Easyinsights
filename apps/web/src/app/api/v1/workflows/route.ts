@@ -33,17 +33,15 @@ export async function POST(request: Request) {
         updatedAt: now,
       };
       await db.collection('workflows').insertOne(doc);
-      await db
-        .collection('workflow_versions')
-        .insertOne({
-          id: `wfv_${opaqueToken(12)}`,
-          ...principal.tenant,
-          workflowId: doc.id,
-          version: 1,
-          snapshot: input,
-          createdBy: principal.userId,
-          createdAt: now,
-        });
+      await db.collection('workflow_versions').insertOne({
+        id: `wfv_${opaqueToken(12)}`,
+        ...principal.tenant,
+        workflowId: doc.id,
+        version: 1,
+        snapshot: input,
+        createdBy: principal.userId,
+        createdAt: now,
+      });
       await appendAudit(db, {
         scope: principal.tenant,
         actorId: principal.userId,

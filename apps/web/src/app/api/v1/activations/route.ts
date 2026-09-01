@@ -31,16 +31,14 @@ export async function POST(request: Request) {
     async ({ requestId, principal }) => {
       const input = await parseBody(request, activationSchema);
       return withTransaction(async (db, session) => {
-        const connector = await db
-          .collection('connectors')
-          .findOne(
-            {
-              ...tenantFilter(principal.tenant),
-              id: input.destinationConnectorId,
-              direction: { $in: ['destination', 'bidirectional'] },
-            },
-            { session },
-          );
+        const connector = await db.collection('connectors').findOne(
+          {
+            ...tenantFilter(principal.tenant),
+            id: input.destinationConnectorId,
+            direction: { $in: ['destination', 'bidirectional'] },
+          },
+          { session },
+        );
         if (!connector)
           throw new ApiError(404, 'DESTINATION_NOT_FOUND', 'Destination connector not found.');
         const runId = `act_${opaqueToken(12)}`;
@@ -50,45 +48,41 @@ export async function POST(request: Request) {
         if (!input.dryRun) {
           approvalId = `apr_${opaqueToken(12)}`;
           status = 'awaiting_approval';
-          await db
-            .collection('approvals')
-            .insertOne(
-              {
-                id: approvalId,
-                ...principal.tenant,
-                title: `Approve ${input.type} activation`,
-                targetType: 'activation',
-                targetId: runId,
-                riskLevel: 'high',
-                requestedBy: principal.userId,
-                predictedImpact: 'External customer-data delivery',
-                evidence: { destination: connector.provider, type: input.type },
-                rollbackPlan: 'Destination-specific suppression or correction workflow',
-                status: 'pending',
-                createdAt: now,
-                updatedAt: now,
-                expiresAt: retentionDate(config.runTtlDays),
-              },
-              { session },
-            );
-        }
-        await db
-          .collection('activation_runs')
-          .insertOne(
+          await db.collection('approvals').insertOne(
             {
-              id: runId,
+              id: approvalId,
               ...principal.tenant,
-              ...input,
-              destinationProvider: connector.provider,
-              status,
-              approvalId,
-              createdBy: principal.userId,
+              title: `Approve ${input.type} activation`,
+              targetType: 'activation',
+              targetId: runId,
+              riskLevel: 'high',
+              requestedBy: principal.userId,
+              predictedImpact: 'External customer-data delivery',
+              evidence: { destination: connector.provider, type: input.type },
+              rollbackPlan: 'Destination-specific suppression or correction workflow',
+              status: 'pending',
               createdAt: now,
               updatedAt: now,
               expiresAt: retentionDate(config.runTtlDays),
             },
             { session },
           );
+        }
+        await db.collection('activation_runs').insertOne(
+          {
+            id: runId,
+            ...principal.tenant,
+            ...input,
+            destinationProvider: connector.provider,
+            status,
+            approvalId,
+            createdBy: principal.userId,
+            createdAt: now,
+            updatedAt: now,
+            expiresAt: retentionDate(config.runTtlDays),
+          },
+          { session },
+        );
         if (input.dryRun)
           await enqueueEvent(
             db,

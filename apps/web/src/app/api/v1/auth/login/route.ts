@@ -15,34 +15,30 @@ export async function POST(request: Request) {
         !(await verifyPassword(input.password, user.passwordHash))
       )
         throw new ApiError(401, 'INVALID_CREDENTIALS', 'Email or password is incorrect.');
-      const membership = await db
-        .collection('memberships')
-        .findOne(
-          {
-            userId: user.id,
-            status: 'active',
-            ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
-          },
-          { sort: { createdAt: 1 } },
-        );
+      const membership = await db.collection('memberships').findOne(
+        {
+          userId: user.id,
+          status: 'active',
+          ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
+        },
+        { sort: { createdAt: 1 } },
+      );
       if (!membership)
         throw new ApiError(403, 'NO_WORKSPACE', 'No active workspace membership was found.');
       rawToken = opaqueToken(48);
       const now = new Date();
       const expiresAt = new Date(now.getTime() + config.sessionTtlSeconds * 1000);
-      await db
-        .collection('sessions')
-        .insertOne({
-          id: `ses_${opaqueToken(12)}`,
-          tokenHash: sha256(rawToken),
-          userId: user.id,
-          organizationId: membership.organizationId,
-          workspaceId: membership.workspaceId,
-          roles: membership.roles,
-          createdAt: now,
-          lastSeenAt: now,
-          expiresAt,
-        });
+      await db.collection('sessions').insertOne({
+        id: `ses_${opaqueToken(12)}`,
+        tokenHash: sha256(rawToken),
+        userId: user.id,
+        organizationId: membership.organizationId,
+        workspaceId: membership.workspaceId,
+        roles: membership.roles,
+        createdAt: now,
+        lastSeenAt: now,
+        expiresAt,
+      });
       await appendAudit(db, {
         scope: {
           organizationId: String(membership.organizationId),

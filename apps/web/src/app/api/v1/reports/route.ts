@@ -33,21 +33,19 @@ export async function POST(request: Request) {
       return withTransaction(async (db, session) => {
         const id = `rep_${opaqueToken(12)}`;
         const now = new Date();
-        await db
-          .collection('reports')
-          .insertOne(
-            {
-              id,
-              ...principal.tenant,
-              ...input,
-              status: 'queued',
-              createdBy: principal.userId,
-              createdAt: now,
-              updatedAt: now,
-              expiresAt: retentionDate(config.runTtlDays),
-            },
-            { session },
-          );
+        await db.collection('reports').insertOne(
+          {
+            id,
+            ...principal.tenant,
+            ...input,
+            status: 'queued',
+            createdBy: principal.userId,
+            createdAt: now,
+            updatedAt: now,
+            expiresAt: retentionDate(config.runTtlDays),
+          },
+          { session },
+        );
         await enqueueEvent(
           db,
           {

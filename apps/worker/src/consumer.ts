@@ -15,37 +15,33 @@ async function persistFailure(message: RuntimeMessage, error: unknown): Promise<
   const detail = error instanceof Error ? error.message : String(error);
   const nextAttempt = message.attempt + 1;
   await withTransaction(async (db, session) => {
-    await db
-      .collection('message_failures')
-      .insertOne(
+    await db.collection('message_failures').insertOne(
+      {
+        id: `mfail_${opaqueToken(12)}`,
+        ...message.scope,
+        messageId: message.id,
+        type: message.type,
+        attempt: nextAttempt,
+        error: detail.slice(0, 4000),
+        createdAt: new Date(),
+        expiresAt: retentionDate(config.runTtlDays),
+      },
+      { session },
+    );
+    if (nextAttempt >= maxAttempts) {
+      await db.collection('dead_letters').insertOne(
         {
-          id: `mfail_${opaqueToken(12)}`,
+          id: `dlq_${opaqueToken(12)}`,
           ...message.scope,
-          messageId: message.id,
-          type: message.type,
+          message,
+          error: detail.slice(0, 8000),
           attempt: nextAttempt,
-          error: detail.slice(0, 4000),
+          status: 'open',
           createdAt: new Date(),
           expiresAt: retentionDate(config.runTtlDays),
         },
         { session },
       );
-    if (nextAttempt >= maxAttempts) {
-      await db
-        .collection('dead_letters')
-        .insertOne(
-          {
-            id: `dlq_${opaqueToken(12)}`,
-            ...message.scope,
-            message,
-            error: detail.slice(0, 8000),
-            attempt: nextAttempt,
-            status: 'open',
-            createdAt: new Date(),
-            expiresAt: retentionDate(config.runTtlDays),
-          },
-          { session },
-        );
       await enqueueEvent(
         db,
         {
@@ -114,19 +110,17 @@ export async function runConsumer(signal: AbortSignal): Promise<void> {
           runtime = parseRuntimeMessage(message.value);
         } catch (error) {
           const db = await getDb();
-          await db
-            .collection('dead_letters')
-            .insertOne({
-              id: `dlq_${opaqueToken(12)}`,
-              sourceTopic: topic,
-              partition,
-              offset: message.offset,
-              rawValue: message.value?.toString('base64'),
-              error: error instanceof Error ? error.message : String(error),
-              status: 'open',
-              createdAt: new Date(),
-              expiresAt: retentionDate(config.runTtlDays),
-            });
+          await db.collection('dead_letters').insertOne({
+            id: `dlq_${opaqueToken(12)}`,
+            sourceTopic: topic,
+            partition,
+            offset: message.offset,
+            rawValue: message.value?.toString('base64'),
+            error: error instanceof Error ? error.message : String(error),
+            status: 'open',
+            createdAt: new Date(),
+            expiresAt: retentionDate(config.runTtlDays),
+          });
           log('error', 'invalid message moved to dead letter storage', {
             topic,
             partition,
@@ -141,22 +135,20 @@ export async function runConsumer(signal: AbortSignal): Promise<void> {
               .findOne({ messageId: runtime.id }, { session });
             if (existing) return;
             await dispatch(db, session, runtime);
-            await db
-              .collection('processed_messages')
-              .insertOne(
-                {
-                  id: `pm_${opaqueToken(12)}`,
-                  ...runtime.scope,
-                  messageId: runtime.id,
-                  type: runtime.type,
-                  topic,
-                  partition,
-                  offset: message.offset,
-                  processedAt: new Date(),
-                  expiresAt: retentionDate(config.runTtlDays),
-                },
-                { session },
-              );
+            await db.collection('processed_messages').insertOne(
+              {
+                id: `pm_${opaqueToken(12)}`,
+                ...runtime.scope,
+                messageId: runtime.id,
+                type: runtime.type,
+                topic,
+                partition,
+                offset: message.offset,
+                processedAt: new Date(),
+                expiresAt: retentionDate(config.runTtlDays),
+              },
+              { session },
+            );
           });
         } catch (error) {
           await persistFailure(runtime, error);

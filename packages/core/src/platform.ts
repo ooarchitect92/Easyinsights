@@ -253,13 +253,11 @@ export interface StoredSession extends Document {
 export async function resolvePrincipal(rawToken: string | undefined): Promise<Principal | null> {
   if (!rawToken) return null;
   const db = await getDb();
-  const session = await db
-    .collection<StoredSession>('sessions')
-    .findOne({
-      tokenHash: sha256(rawToken),
-      expiresAt: { $gt: new Date() },
-      revokedAt: { $exists: false },
-    });
+  const session = await db.collection<StoredSession>('sessions').findOne({
+    tokenHash: sha256(rawToken),
+    expiresAt: { $gt: new Date() },
+    revokedAt: { $exists: false },
+  });
   if (!session) return null;
   const user = await db.collection('users').findOne({ id: session.userId, status: 'active' });
   if (!user) return null;

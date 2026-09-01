@@ -89,65 +89,61 @@ export async function handleCanonical(
     await db.collection('customer_profiles').updateOne({ id: profile.id }, update, { session });
   }
   const matchedOn = clauses.flatMap((clause) => Object.keys(clause));
-  await db
-    .collection('identity_decisions')
-    .insertOne(
-      {
-        id: `idn_${opaqueToken(12)}`,
+  await db.collection('identity_decisions').insertOne(
+    {
+      id: `idn_${opaqueToken(12)}`,
+      ...message.scope,
+      eventId,
+      profileId: profile.id,
+      decision,
+      matchedOn,
+      confidence: matchedOn.length ? 1 : 0.5,
+      createdAt: now,
+    },
+    { session },
+  );
+  await db.collection('journeys').updateOne(
+    { ...scope, profileId: profile.id },
+    {
+      $setOnInsert: {
+        id: `jny_${opaqueToken(12)}`,
         ...message.scope,
-        eventId,
         profileId: profile.id,
-        decision,
-        matchedOn,
-        confidence: matchedOn.length ? 1 : 0.5,
+        firstSource: event.campaign?.source ?? event.source,
+        firstTouchAt: event.eventTime,
         createdAt: now,
       },
-      { session },
-    );
-  await db
-    .collection('journeys')
-    .updateOne(
-      { ...scope, profileId: profile.id },
-      {
-        $setOnInsert: {
-          id: `jny_${opaqueToken(12)}`,
-          ...message.scope,
-          profileId: profile.id,
-          firstSource: event.campaign?.source ?? event.source,
-          firstTouchAt: event.eventTime,
-          createdAt: now,
-        },
-        $set: {
-          lastSource: event.campaign?.source ?? event.source,
-          lastTouchAt: event.eventTime,
-          converted: Boolean(
-            event.eventName.includes('payment') || event.eventName.includes('purchase'),
-          ),
-          conversionEvent:
-            event.eventName.includes('payment') || event.eventName.includes('purchase')
-              ? event.eventName
-              : null,
-          updatedAt: now,
-        },
-        $inc: { touchpointCount: 1 },
-        $push: {
-          touchpoints: {
-            $each: [
-              {
-                eventId,
-                eventName: event.eventName,
-                source: event.campaign?.source ?? event.source,
-                medium: event.campaign?.medium,
-                campaignId: event.campaign?.campaignId,
-                eventTime: event.eventTime,
-              },
-            ],
-            $slice: -500,
-          },
+      $set: {
+        lastSource: event.campaign?.source ?? event.source,
+        lastTouchAt: event.eventTime,
+        converted: Boolean(
+          event.eventName.includes('payment') || event.eventName.includes('purchase'),
+        ),
+        conversionEvent:
+          event.eventName.includes('payment') || event.eventName.includes('purchase')
+            ? event.eventName
+            : null,
+        updatedAt: now,
+      },
+      $inc: { touchpointCount: 1 },
+      $push: {
+        touchpoints: {
+          $each: [
+            {
+              eventId,
+              eventName: event.eventName,
+              source: event.campaign?.source ?? event.source,
+              medium: event.campaign?.medium,
+              campaignId: event.campaign?.campaignId,
+              eventTime: event.eventTime,
+            },
+          ],
+          $slice: -500,
         },
       },
-      { upsert: true, session },
-    );
+    },
+    { upsert: true, session },
+  );
   const findings = [] as Document[];
   if (!event.customerId && !event.anonymousId)
     findings.push({
@@ -174,19 +170,17 @@ export async function handleCanonical(
       impactScore: 35,
     });
   for (const finding of findings)
-    await db
-      .collection('quality_findings')
-      .insertOne(
-        {
-          id: `qf_${opaqueToken(12)}`,
-          ...message.scope,
-          eventId,
-          status: 'open',
-          createdAt: now,
-          ...finding,
-        },
-        { session },
-      );
+    await db.collection('quality_findings').insertOne(
+      {
+        id: `qf_${opaqueToken(12)}`,
+        ...message.scope,
+        eventId,
+        status: 'open',
+        createdAt: now,
+        ...finding,
+      },
+      { session },
+    );
   await db
     .collection('canonical_events')
     .updateOne(

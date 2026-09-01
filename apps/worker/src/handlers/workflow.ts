@@ -44,34 +44,31 @@ export async function handleWorkflow(
         );
       if (!existing) {
         const approvalId = `apr_${opaqueToken(12)}`;
-        await db
-          .collection('approvals')
-          .insertOne(
-            {
-              id: approvalId,
-              ...message.scope,
-              title: `Approve workflow step: ${String(node.name)}`,
-              targetType: 'workflow',
-              targetId: runId,
-              riskLevel: String(node.configuration?.riskLevel ?? 'high'),
-              requestedBy: run.createdBy,
-              predictedImpact: String(
-                node.configuration?.predictedImpact ??
-                  'Workflow action may change an external system.',
-              ),
-              evidence: { workflowId: workflow.id, runId, nodeId },
-              rollbackPlan: String(
-                node.configuration?.rollbackPlan ??
-                  'Use the workflow-specific compensating action.',
-              ),
-              status: 'pending',
-              metadata: { nodeId },
-              createdAt: new Date(),
-              updatedAt: new Date(),
-              expiresAt: new Date(Date.now() + config.runTtlDays * 86400000),
-            },
-            { session },
-          );
+        await db.collection('approvals').insertOne(
+          {
+            id: approvalId,
+            ...message.scope,
+            title: `Approve workflow step: ${String(node.name)}`,
+            targetType: 'workflow',
+            targetId: runId,
+            riskLevel: String(node.configuration?.riskLevel ?? 'high'),
+            requestedBy: run.createdBy,
+            predictedImpact: String(
+              node.configuration?.predictedImpact ??
+                'Workflow action may change an external system.',
+            ),
+            evidence: { workflowId: workflow.id, runId, nodeId },
+            rollbackPlan: String(
+              node.configuration?.rollbackPlan ?? 'Use the workflow-specific compensating action.',
+            ),
+            status: 'pending',
+            metadata: { nodeId },
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            expiresAt: new Date(Date.now() + config.runTtlDays * 86400000),
+          },
+          { session },
+        );
         await markRun(db, session, 'workflow_runs', runId, 'awaiting_approval', {
           approvalId,
           currentNodeIds: [nodeId],

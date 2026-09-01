@@ -22,30 +22,28 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         if (!agent) throw new ApiError(404, 'NOT_FOUND', 'Enabled agent not found.');
         const runId = `agrun_${opaqueToken(12)}`;
         const now = new Date();
-        await db
-          .collection('agent_runs')
-          .insertOne(
-            {
-              id: runId,
-              ...principal.tenant,
-              agentId: id,
-              name: agent.name,
-              agentType: agent.type,
-              agentVersion: agent.version ?? 1,
-              autonomy: agent.autonomy,
-              prompt: input.prompt,
-              context: input.context,
-              requestedAction: input.requestedAction,
-              dryRun: input.dryRun,
-              status: 'queued',
-              attempt: 0,
-              createdBy: principal.userId,
-              createdAt: now,
-              updatedAt: now,
-              expiresAt: retentionDate(config.runTtlDays),
-            },
-            { session },
-          );
+        await db.collection('agent_runs').insertOne(
+          {
+            id: runId,
+            ...principal.tenant,
+            agentId: id,
+            name: agent.name,
+            agentType: agent.type,
+            agentVersion: agent.version ?? 1,
+            autonomy: agent.autonomy,
+            prompt: input.prompt,
+            context: input.context,
+            requestedAction: input.requestedAction,
+            dryRun: input.dryRun,
+            status: 'queued',
+            attempt: 0,
+            createdBy: principal.userId,
+            createdAt: now,
+            updatedAt: now,
+            expiresAt: retentionDate(config.runTtlDays),
+          },
+          { session },
+        );
         await enqueueEvent(
           db,
           {

@@ -26,23 +26,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         if (!audience) throw new ApiError(404, 'NOT_FOUND', 'Audience not found.');
         const runId = `arun_${opaqueToken(12)}`;
         const now = new Date();
-        await db
-          .collection('audience_runs')
-          .insertOne(
-            {
-              id: runId,
-              ...principal.tenant,
-              audienceId: id,
-              destinationConnectorId: input.destinationConnectorId,
-              dryRun: input.dryRun,
-              status: 'queued',
-              createdBy: principal.userId,
-              createdAt: now,
-              updatedAt: now,
-              expiresAt: retentionDate(config.runTtlDays),
-            },
-            { session },
-          );
+        await db.collection('audience_runs').insertOne(
+          {
+            id: runId,
+            ...principal.tenant,
+            audienceId: id,
+            destinationConnectorId: input.destinationConnectorId,
+            dryRun: input.dryRun,
+            status: 'queued',
+            createdBy: principal.userId,
+            createdAt: now,
+            updatedAt: now,
+            expiresAt: retentionDate(config.runTtlDays),
+          },
+          { session },
+        );
         await enqueueEvent(
           db,
           {

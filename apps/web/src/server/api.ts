@@ -202,19 +202,17 @@ export async function idempotency<T>(
         return;
       }
       result = await work(session);
-      await db
-        .collection('idempotency_keys')
-        .insertOne(
-          {
-            id: `idem_${randomUUID()}`,
-            ...scope,
-            key,
-            response: result,
-            createdAt: new Date(),
-            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-          },
-          { session },
-        );
+      await db.collection('idempotency_keys').insertOne(
+        {
+          id: `idem_${randomUUID()}`,
+          ...scope,
+          key,
+          response: result,
+          createdAt: new Date(),
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        },
+        { session },
+      );
     });
     return { value: result, replayed: false };
   } finally {

@@ -55,21 +55,19 @@ export async function POST(request: Request) {
             : {}),
           ...(input.identifiers.externalId ? { externalId: input.identifiers.externalId } : {}),
         };
-        await db
-          .collection('raw_events')
-          .insertOne(
-            {
-              id: rawId,
-              ...principal.tenant,
-              source: input.source,
-              receivedAt: now,
-              payload: input,
-              transformationVersion: 'canonical-v1',
-              expiresAt: retentionDate(config.rawEventTtlDays),
-              dataClassification: 'restricted',
-            },
-            { session },
-          );
+        await db.collection('raw_events').insertOne(
+          {
+            id: rawId,
+            ...principal.tenant,
+            source: input.source,
+            receivedAt: now,
+            payload: input,
+            transformationVersion: 'canonical-v1',
+            expiresAt: retentionDate(config.rawEventTtlDays),
+            dataClassification: 'restricted',
+          },
+          { session },
+        );
         const event = {
           id: canonicalId,
           ...principal.tenant,
@@ -91,19 +89,17 @@ export async function POST(request: Request) {
           dataClassification: 'confidential',
         };
         await db.collection('canonical_events').insertOne(event, { session });
-        await db
-          .collection('usage_events')
-          .insertOne(
-            {
-              id: `use_${opaqueToken(12)}`,
-              ...principal.tenant,
-              metric: 'events',
-              quantity: 1,
-              occurredAt: now,
-              createdAt: now,
-            },
-            { session },
-          );
+        await db.collection('usage_events').insertOne(
+          {
+            id: `use_${opaqueToken(12)}`,
+            ...principal.tenant,
+            metric: 'events',
+            quantity: 1,
+            occurredAt: now,
+            createdAt: now,
+          },
+          { session },
+        );
         await enqueueEvent(
           db,
           {

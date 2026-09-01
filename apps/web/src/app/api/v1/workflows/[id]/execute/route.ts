@@ -29,28 +29,26 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         if (!workflow) throw new ApiError(404, 'NOT_FOUND', 'Workflow was not found.');
         const runId = `wrun_${opaqueToken(12)}`;
         const now = new Date();
-        await db
-          .collection('workflow_runs')
-          .insertOne(
-            {
-              id: runId,
-              ...principal.tenant,
-              workflowId: id,
-              name: workflow.name,
-              workflowVersion: workflow.version ?? 1,
-              trigger: input.trigger,
-              dryRun: input.dryRun,
-              status: 'queued',
-              currentNodeIds: [],
-              completedNodeIds: [],
-              attempt: 0,
-              createdBy: principal.userId,
-              createdAt: now,
-              updatedAt: now,
-              expiresAt: retentionDate(config.runTtlDays),
-            },
-            { session },
-          );
+        await db.collection('workflow_runs').insertOne(
+          {
+            id: runId,
+            ...principal.tenant,
+            workflowId: id,
+            name: workflow.name,
+            workflowVersion: workflow.version ?? 1,
+            trigger: input.trigger,
+            dryRun: input.dryRun,
+            status: 'queued',
+            currentNodeIds: [],
+            completedNodeIds: [],
+            attempt: 0,
+            createdBy: principal.userId,
+            createdAt: now,
+            updatedAt: now,
+            expiresAt: retentionDate(config.runTtlDays),
+          },
+          { session },
+        );
         await enqueueEvent(
           db,
           {

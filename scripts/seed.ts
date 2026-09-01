@@ -11,80 +11,72 @@ const email = (process.env.SEED_ADMIN_EMAIL ?? 'admin@easyinsights.local').toLow
 const password = process.env.SEED_ADMIN_PASSWORD ?? 'ChangeMe-Strong-2026!';
 if (password.length < 12)
   throw new Error('SEED_ADMIN_PASSWORD must contain at least 12 characters.');
-await db
-  .collection('organizations')
-  .updateOne(
-    { id: organizationId },
-    {
-      $setOnInsert: {
-        id: organizationId,
-        slug: 'demo-growth-agency',
-        name: 'Demo Growth Agency',
-        status: 'active',
-        plan: 'Growth',
-        dataRegion: 'India',
-        createdAt: now,
-      },
-      $set: { updatedAt: now },
+await db.collection('organizations').updateOne(
+  { id: organizationId },
+  {
+    $setOnInsert: {
+      id: organizationId,
+      slug: 'demo-growth-agency',
+      name: 'Demo Growth Agency',
+      status: 'active',
+      plan: 'Growth',
+      dataRegion: 'India',
+      createdAt: now,
     },
-    { upsert: true },
-  );
-await db
-  .collection('workspaces')
-  .updateOne(
-    { id: workspaceId },
-    {
-      $setOnInsert: {
-        id: workspaceId,
-        organizationId,
-        slug: 'demo-growth',
-        name: 'Demo Growth Workspace',
-        status: 'active',
-        timezone: 'Asia/Kolkata',
-        currency: 'INR',
-        createdAt: now,
-      },
-      $set: { updatedAt: now },
+    $set: { updatedAt: now },
+  },
+  { upsert: true },
+);
+await db.collection('workspaces').updateOne(
+  { id: workspaceId },
+  {
+    $setOnInsert: {
+      id: workspaceId,
+      organizationId,
+      slug: 'demo-growth',
+      name: 'Demo Growth Workspace',
+      status: 'active',
+      timezone: 'Asia/Kolkata',
+      currency: 'INR',
+      createdAt: now,
     },
-    { upsert: true },
-  );
-await db
-  .collection('users')
-  .updateOne(
-    { id: adminId },
-    {
-      $setOnInsert: {
-        id: adminId,
-        email,
-        name: 'Demo Platform Administrator',
-        status: 'active',
-        createdAt: now,
-      },
-      $set: { passwordHash: await hashPassword(password), updatedAt: now },
+    $set: { updatedAt: now },
+  },
+  { upsert: true },
+);
+await db.collection('users').updateOne(
+  { id: adminId },
+  {
+    $setOnInsert: {
+      id: adminId,
+      email,
+      name: 'Demo Platform Administrator',
+      status: 'active',
+      createdAt: now,
     },
-    { upsert: true },
-  );
-await db
-  .collection('memberships')
-  .updateOne(
-    { id: 'mem_demo_admin' },
-    {
-      $setOnInsert: {
-        id: 'mem_demo_admin',
-        organizationId,
-        workspaceId,
-        userId: adminId,
-        email,
-        userName: 'Demo Platform Administrator',
-        workspaceName: 'Demo Growth Workspace',
-        roles: ['platform_admin'],
-        status: 'active',
-        createdAt: now,
-      },
-      $set: { updatedAt: now },
+    $set: { passwordHash: await hashPassword(password), updatedAt: now },
+  },
+  { upsert: true },
+);
+await db.collection('memberships').updateOne(
+  { id: 'mem_demo_admin' },
+  {
+    $setOnInsert: {
+      id: 'mem_demo_admin',
+      organizationId,
+      workspaceId,
+      userId: adminId,
+      email,
+      userName: 'Demo Platform Administrator',
+      workspaceName: 'Demo Growth Workspace',
+      roles: ['platform_admin'],
+      status: 'active',
+      createdAt: now,
     },
-    { upsert: true },
-  );
+    $set: { updatedAt: now },
+  },
+  { upsert: true },
+);
 const scope = { organizationId, workspaceId };
 const connectors = [
   {
@@ -143,23 +135,21 @@ const connectors = [
   },
 ];
 for (const row of connectors)
-  await db
-    .collection('connectors')
-    .updateOne(
-      { id: row.id },
-      {
-        $setOnInsert: {
-          ...row,
-          ...scope,
-          configuration: { mode: row.provider === 'webhook' ? 'signed_webhook' : 'manual_upload' },
-          createdBy: adminId,
-          createdAt: now,
-          dataClassification: 'confidential',
-        },
-        $set: { updatedAt: now },
+  await db.collection('connectors').updateOne(
+    { id: row.id },
+    {
+      $setOnInsert: {
+        ...row,
+        ...scope,
+        configuration: { mode: row.provider === 'webhook' ? 'signed_webhook' : 'manual_upload' },
+        createdBy: adminId,
+        createdAt: now,
+        dataClassification: 'confidential',
       },
-      { upsert: true },
-    );
+      $set: { updatedAt: now },
+    },
+    { upsert: true },
+  );
 const campaigns = [
   {
     id: 'cmp_search_brand',
@@ -215,16 +205,14 @@ const campaigns = [
   },
 ];
 for (const row of campaigns)
-  await db
-    .collection('campaigns')
-    .updateOne(
-      { id: row.id },
-      {
-        $setOnInsert: { ...row, ...scope, createdAt: new Date(now.getTime() - 60 * day) },
-        $set: { updatedAt: now },
-      },
-      { upsert: true },
-    );
+  await db.collection('campaigns').updateOne(
+    { id: row.id },
+    {
+      $setOnInsert: { ...row, ...scope, createdAt: new Date(now.getTime() - 60 * day) },
+      $set: { updatedAt: now },
+    },
+    { upsert: true },
+  );
 const profiles = [
   {
     id: 'cus_aarav',
@@ -295,22 +283,20 @@ const profiles = [
   },
 ];
 for (const row of profiles)
-  await db
-    .collection('customer_profiles')
-    .updateOne(
-      { id: row.id },
-      {
-        $setOnInsert: {
-          ...row,
-          ...scope,
-          identityEvidence: ['seeded_demo'],
-          createdAt: row.firstSeenAt,
-          dataClassification: 'restricted',
-        },
-        $set: { updatedAt: now },
+  await db.collection('customer_profiles').updateOne(
+    { id: row.id },
+    {
+      $setOnInsert: {
+        ...row,
+        ...scope,
+        identityEvidence: ['seeded_demo'],
+        createdAt: row.firstSeenAt,
+        dataClassification: 'restricted',
       },
-      { upsert: true },
-    );
+      $set: { updatedAt: now },
+    },
+    { upsert: true },
+  );
 const events = [
   {
     id: 'evt_seed_1',
@@ -389,23 +375,21 @@ const events = [
   },
 ];
 for (const row of events)
-  await db
-    .collection('canonical_events')
-    .updateOne(
-      { id: row.id },
-      {
-        $setOnInsert: {
-          ...row,
-          ...scope,
-          transformationVersion: 'canonical-v1',
-          processingStatus: 'processed',
-          processedAt: row.eventTime,
-          createdAt: row.eventTime,
-          dataClassification: 'confidential',
-        },
+  await db.collection('canonical_events').updateOne(
+    { id: row.id },
+    {
+      $setOnInsert: {
+        ...row,
+        ...scope,
+        transformationVersion: 'canonical-v1',
+        processingStatus: 'processed',
+        processedAt: row.eventTime,
+        createdAt: row.eventTime,
+        dataClassification: 'confidential',
       },
-      { upsert: true },
-    );
+    },
+    { upsert: true },
+  );
 const journeys = [
   {
     id: 'jny_aarav',
@@ -417,15 +401,13 @@ const journeys = [
     touchpointCount: 2,
     converted: false,
     conversionEvent: null,
-    touchpoints: events
-      .slice(0, 2)
-      .map((e) => ({
-        eventId: e.id,
-        eventName: e.eventName,
-        source: e.campaign.source,
-        campaignId: e.campaign.campaignId,
-        eventTime: e.eventTime,
-      })),
+    touchpoints: events.slice(0, 2).map((e) => ({
+      eventId: e.id,
+      eventName: e.eventName,
+      source: e.campaign.source,
+      campaignId: e.campaign.campaignId,
+      eventTime: e.eventTime,
+    })),
   },
   {
     id: 'jny_mira',
@@ -437,15 +419,13 @@ const journeys = [
     touchpointCount: 2,
     converted: true,
     conversionEvent: 'payment_completed',
-    touchpoints: events
-      .slice(2, 4)
-      .map((e) => ({
-        eventId: e.id,
-        eventName: e.eventName,
-        source: e.campaign.source,
-        campaignId: e.campaign.campaignId,
-        eventTime: e.eventTime,
-      })),
+    touchpoints: events.slice(2, 4).map((e) => ({
+      eventId: e.id,
+      eventName: e.eventName,
+      source: e.campaign.source,
+      campaignId: e.campaign.campaignId,
+      eventTime: e.eventTime,
+    })),
   },
 ];
 for (const row of journeys)
@@ -691,84 +671,77 @@ const agents: Array<[string, string, string, string]> = [
   ['agt_report', 'Report Agent', 'report', 'advisory'],
 ];
 for (const [id, name, type, autonomy] of agents)
-  await db
-    .collection('agents')
-    .updateOne(
-      { id },
-      {
-        $setOnInsert: {
-          id,
-          ...scope,
-          name,
-          type,
-          autonomy,
-          policy: {
-            maxDailyBudgetChangePercent: 10,
-            allowedChannels: ['Meta Ads', 'Google Ads'],
-            minimumConfidence: 0.9,
-            minimumSampleSize: 1000,
-            approvalImpactThreshold: 50000,
-            excludedCampaigns: ['Brand Search — India'],
-          },
-          enabled: true,
-          instructions:
-            'Use tenant-scoped governed data, cite evidence, and never bypass approval.',
-          version: 1,
-          createdBy: adminId,
-          createdAt: new Date(now.getTime() - 12 * day),
-        },
-        $set: { updatedAt: now },
-      },
-      { upsert: true },
-    );
-await db
-  .collection('subscriptions')
-  .updateOne(
-    scope,
+  await db.collection('agents').updateOne(
+    { id },
     {
       $setOnInsert: {
-        id: 'sub_demo_growth',
+        id,
         ...scope,
-        planId: 'growth',
-        planName: 'Growth',
-        status: 'active',
-        currency: 'INR',
-        monthlyPrice: 29999,
-        entitlements: {
-          monthlyEvents: 1000000,
-          connectors: 15,
-          workspaces: 5,
-          aiOperations: 10000,
+        name,
+        type,
+        autonomy,
+        policy: {
+          maxDailyBudgetChangePercent: 10,
+          allowedChannels: ['Meta Ads', 'Google Ads'],
+          minimumConfidence: 0.9,
+          minimumSampleSize: 1000,
+          approvalImpactThreshold: 50000,
+          excludedCampaigns: ['Brand Search — India'],
         },
-        createdAt: now,
+        enabled: true,
+        instructions: 'Use tenant-scoped governed data, cite evidence, and never bypass approval.',
+        version: 1,
+        createdBy: adminId,
+        createdAt: new Date(now.getTime() - 12 * day),
       },
       $set: { updatedAt: now },
     },
     { upsert: true },
   );
+await db.collection('subscriptions').updateOne(
+  scope,
+  {
+    $setOnInsert: {
+      id: 'sub_demo_growth',
+      ...scope,
+      planId: 'growth',
+      planName: 'Growth',
+      status: 'active',
+      currency: 'INR',
+      monthlyPrice: 29999,
+      entitlements: {
+        monthlyEvents: 1000000,
+        connectors: 15,
+        workspaces: 5,
+        aiOperations: 10000,
+      },
+      createdAt: now,
+    },
+    $set: { updatedAt: now },
+  },
+  { upsert: true },
+);
 const periodStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-await db
-  .collection('usage_monthly')
-  .updateOne(
-    { ...scope, periodStart },
-    {
-      $setOnInsert: {
-        id: 'usage_demo_current',
-        ...scope,
-        periodStart,
-        events: 48260,
-        activeProfiles: 12840,
-        connectors: 6,
-        activations: 42,
-        aiOperations: 318,
-        storageBytes: 786432000,
-        status: 'within_limit',
-        createdAt: now,
-      },
-      $set: { updatedAt: now },
+await db.collection('usage_monthly').updateOne(
+  { ...scope, periodStart },
+  {
+    $setOnInsert: {
+      id: 'usage_demo_current',
+      ...scope,
+      periodStart,
+      events: 48260,
+      activeProfiles: 12840,
+      connectors: 6,
+      activations: 42,
+      aiOperations: 318,
+      storageBytes: 786432000,
+      status: 'within_limit',
+      createdAt: now,
     },
-    { upsert: true },
-  );
+    $set: { updatedAt: now },
+  },
+  { upsert: true },
+);
 if (!(await db.collection('audit_logs').findOne({ ...scope, action: 'seed.complete' })))
   await appendAudit(db, {
     scope,

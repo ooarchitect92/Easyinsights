@@ -93,28 +93,26 @@ export async function handleAgent(
   if (run.requestedAction && run.dryRun !== true && agent.autonomy !== 'advisory') {
     approvalId = `apr_${opaqueToken(12)}`;
     status = 'awaiting_approval';
-    await db
-      .collection('approvals')
-      .insertOne(
-        {
-          id: approvalId,
-          ...message.scope,
-          title: `Approve agent action: ${String(agent.name)}`,
-          targetType: 'agent',
-          targetId: runId,
-          riskLevel: 'high',
-          requestedBy: run.createdBy,
-          predictedImpact: 'Agent-requested external or campaign action',
-          evidence: { result, requestedAction: run.requestedAction },
-          rollbackPlan:
-            'Use the destination-specific compensating operation recorded by the action adapter.',
-          status: 'pending',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          expiresAt: new Date(Date.now() + config.runTtlDays * 86400000),
-        },
-        { session },
-      );
+    await db.collection('approvals').insertOne(
+      {
+        id: approvalId,
+        ...message.scope,
+        title: `Approve agent action: ${String(agent.name)}`,
+        targetType: 'agent',
+        targetId: runId,
+        riskLevel: 'high',
+        requestedBy: run.createdBy,
+        predictedImpact: 'Agent-requested external or campaign action',
+        evidence: { result, requestedAction: run.requestedAction },
+        rollbackPlan:
+          'Use the destination-specific compensating operation recorded by the action adapter.',
+        status: 'pending',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        expiresAt: new Date(Date.now() + config.runTtlDays * 86400000),
+      },
+      { session },
+    );
   }
   await markRun(db, session, 'agent_runs', runId, status, {
     completedAt: status === 'completed' ? new Date() : undefined,

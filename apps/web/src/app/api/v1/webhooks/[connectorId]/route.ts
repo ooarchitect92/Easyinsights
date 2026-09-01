@@ -72,35 +72,31 @@ export async function POST(
       };
       return withTransaction(async (transactionDb, session) => {
         const now = new Date();
-        await transactionDb
-          .collection('webhook_replays')
-          .insertOne(
-            {
-              id: `wh_${opaqueToken(12)}`,
-              key: replayKey,
-              ...scope,
-              createdAt: now,
-              expiresAt: new Date(now.getTime() + 10 * 60 * 1000),
-            },
-            { session },
-          );
+        await transactionDb.collection('webhook_replays').insertOne(
+          {
+            id: `wh_${opaqueToken(12)}`,
+            key: replayKey,
+            ...scope,
+            createdAt: now,
+            expiresAt: new Date(now.getTime() + 10 * 60 * 1000),
+          },
+          { session },
+        );
         const rawId = `raw_${opaqueToken(12)}`;
         const canonicalId = `evt_${opaqueToken(12)}`;
-        await transactionDb
-          .collection('raw_events')
-          .insertOne(
-            {
-              id: rawId,
-              ...scope,
-              source: input.source,
-              receivedAt: now,
-              payload: input,
-              transformationVersion: 'canonical-v1',
-              expiresAt: retentionDate(config.rawEventTtlDays),
-              dataClassification: 'restricted',
-            },
-            { session },
-          );
+        await transactionDb.collection('raw_events').insertOne(
+          {
+            id: rawId,
+            ...scope,
+            source: input.source,
+            receivedAt: now,
+            payload: input,
+            transformationVersion: 'canonical-v1',
+            expiresAt: retentionDate(config.rawEventTtlDays),
+            dataClassification: 'restricted',
+          },
+          { session },
+        );
         const identifiers = {
           ...(input.identifiers.email
             ? { emailHash: sha256(normalizeEmail(input.identifiers.email)) }
@@ -110,31 +106,29 @@ export async function POST(
             : {}),
           ...(input.identifiers.externalId ? { externalId: input.identifiers.externalId } : {}),
         };
-        await transactionDb
-          .collection('canonical_events')
-          .insertOne(
-            {
-              id: canonicalId,
-              ...scope,
-              eventId: input.eventId,
-              eventName: input.eventName,
-              eventTime: input.eventTime,
-              anonymousId: input.anonymousId,
-              customerId: input.customerId,
-              source: input.source,
-              campaign: input.campaign,
-              properties: input.properties,
-              context: input.context,
-              identifiers,
-              consent: input.consent,
-              rawEventId: rawId,
-              transformationVersion: 'canonical-v1',
-              processingStatus: 'queued',
-              createdAt: now,
-              dataClassification: 'confidential',
-            },
-            { session },
-          );
+        await transactionDb.collection('canonical_events').insertOne(
+          {
+            id: canonicalId,
+            ...scope,
+            eventId: input.eventId,
+            eventName: input.eventName,
+            eventTime: input.eventTime,
+            anonymousId: input.anonymousId,
+            customerId: input.customerId,
+            source: input.source,
+            campaign: input.campaign,
+            properties: input.properties,
+            context: input.context,
+            identifiers,
+            consent: input.consent,
+            rawEventId: rawId,
+            transformationVersion: 'canonical-v1',
+            processingStatus: 'queued',
+            createdAt: now,
+            dataClassification: 'confidential',
+          },
+          { session },
+        );
         await enqueueEvent(
           transactionDb,
           {
