@@ -1,4 +1,4 @@
-name: Apply targeted lint fixes
+name: Apply targeted type fixes
 
 on:
   push:
@@ -26,82 +26,62 @@ jobs:
 
       - run: npm ci --no-audit --no-fund
 
-      - name: Apply behavior-preserving lint corrections
+      - name: Apply strict TypeScript corrections
         shell: bash
         run: |
           python <<'PY'
           from pathlib import Path
-
-          replacements = {
-              'apps/web/src/app/api/v1/events/route.ts': [
-                  ('  withTransaction,\n', ''),
-              ],
-              'apps/web/src/app/api/v1/organizations/route.ts': [
-                  ("import { publicDocument, tenantFilter } from '@easyinsights/core';", "import { publicDocument } from '@easyinsights/core';"),
-              ],
-              'apps/web/src/app/api/v1/webhooks/[connectorId]/route.ts': [
-                  ('  tenantFilter,\n', ''),
-              ],
-              'apps/web/src/server/data.ts': [
-                  ("import type { Document, Sort } from 'mongodb';", "import type { Sort } from 'mongodb';"),
-              ],
-              'apps/worker/src/handlers/audience.ts': [
-                  ("import { config, enqueueEvent, opaqueToken, tenantFilter } from '@easyinsights/core';", "import { config, opaqueToken, tenantFilter } from '@easyinsights/core';"),
-              ],
-          }
-
-          for file_name, file_replacements in replacements.items():
-              path = Path(file_name)
-              value = path.read_text()
-              for old, new in file_replacements:
-                  if old not in value:
-                      raise SystemExit(f'Expected text not found in {file_name}: {old!r}')
-                  value = value.replace(old, new, 1)
-              path.write_text(value)
+          import json
 
           cache_path = Path('packages/core/src/cache.ts')
           cache = cache_path.read_text()
-          old = '    } catch {}'
-          replacement = "    } catch {\n      // Redis is an optional acceleration layer; MongoDB remains authoritative.\n    }"
-          if cache.count(old) != 4:
-              raise SystemExit(f'Expected four Redis fallback catches, found {cache.count(old)}')
-          cache_path.write_text(cache.replace(old, replacement))
+          cache = cache.replace("import Redis from 'ioredis';", "import { Redis } from 'ioredis';", 1)
+          cache = cache.replace('retryStrategy: (times) =>', 'retryStrategy: (times: number) =>', 1)
+          cache_path.write_text(cache)
 
-          validation_path = Path('scripts/validate-repository.mjs')
-          validation = validation_path.read_text()
-          directive = '/* global console, process */\n'
-          if not validation.startswith(directive):
-              validation_path.write_text(directive + validation)
+          platform_path = Path('packages/core/src/platform.ts')
+          platform = platform_path.read_text()
+          old_find = ".find(tenantFilter(input.scope), { session: input.session })"
+          new_find = ".find(\n      tenantFilter(input.scope),\n      input.session ? { session: input.session } : undefined,\n    )"
+          if old_find not in platform:
+              raise SystemExit('Expected audit find options were not found')
+          platform = platform.replace(old_find, new_find, 1)
+          old_insert = "    { session: input.session },\n  );"
+          new_insert = "    input.session ? { session: input.session } : undefined,\n  );"
+          if old_insert not in platform:
+              raise SystemExit('Expected audit insert options were not found')
+          platform_path.write_text(platform.replace(old_insert, new_insert, 1))
+
+          queue_path = Path('packages/core/src/queue.ts')
+          queue = queue_path.read_text()
+          old_queue = "insertOne(doc, { session });"
+          if old_queue not in queue:
+              raise SystemExit('Expected outbox insert options were not found')
+          queue_path.write_text(queue.replace(old_queue, "insertOne(doc, session ? { session } : undefined);", 1))
+
+          package_path = Path('package.json')
+          package = json.loads(package_path.read_text())
+          package['scripts']['typecheck'] = (
+              'npm run build:packages && '
+              'npm run typecheck -w @easyinsights/web && '
+              'npm run typecheck -w @easyinsights/worker'
+          )
+          package_path.write_text(json.dumps(package, indent=2) + '\n')
           PY
 
       - name: Format affected files
-        run: |
-          npx prettier --write \
-            apps/web/src/app/api/v1/events/route.ts \
-            apps/web/src/app/api/v1/organizations/route.ts \
-            'apps/web/src/app/api/v1/webhooks/[connectorId]/route.ts' \
-            apps/web/src/server/data.ts \
-            apps/worker/src/handlers/audience.ts \
-            packages/core/src/cache.ts \
-            scripts/validate-repository.mjs
+        run: npx prettier --write package.json packages/core/src/cache.ts packages/core/src/platform.ts packages/core/src/queue.ts
 
       - run: npm run lint
 
-      - name: Commit lint corrections
+      - name: Commit strict TypeScript corrections
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
-            apps/web/src/app/api/v1/events/route.ts \
-            apps/web/src/app/api/v1/organizations/route.ts \
-            'apps/web/src/app/api/v1/webhooks/[connectorId]/route.ts' \
-            apps/web/src/server/data.ts \
-            apps/worker/src/handlers/audience.ts \
-            packages/core/src/cache.ts \
-            scripts/validate-repository.mjs
-          git commit -m "fix: resolve lint errors in API, cache, and validation modules"
+          git add package.json packages/core/src/cache.ts packages/core/src/platform.ts packages/core/src/queue.ts
+          git commit -m "fix: satisfy strict TypeScript contracts in core runtime"
           git push origin "HEAD:${GITHUB_REF_NAME}"
 
       - run: npm run typecheck
