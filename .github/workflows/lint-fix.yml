@@ -1,4 +1,4 @@
-name: Snapshot and diagnose current branch
+name: Temporary canonical formatter
 
 on:
   push:
@@ -6,41 +6,17 @@ on:
       - codex/easyinsights-production-20260901
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  snapshot:
+  format:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Verify clean checkout paths
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "HEAD=$(git rev-parse HEAD)"
-          echo "Tracked generated artifacts:"
-          git ls-files | grep -E '(^|/)(\.next|dist|node_modules)/|tsbuildinfo$' || true
-          echo "Tracked web route files:"
-          git ls-files 'apps/web/src/app/**' | sort
-          echo "Unexpected diagnostic paths:"
-          find . -type f \( -path '*\(auth\)*' -o -path '*customerId*' -o -path '*reports/custom*' -o -path '*packages/ui*' \) -print || true
-
-      - name: Package exact tracked source
-        shell: bash
-        run: |
-          set -euo pipefail
-          git archive --format=tar.gz --output=/tmp/easyinsights-current-source.tar.gz HEAD
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: easyinsights-current-source
-          path: /tmp/easyinsights-current-source.tar.gz
-          retention-days: 3
 
       - uses: actions/setup-node@v4
         with:
@@ -50,19 +26,20 @@ jobs:
 
       - run: npm ci --no-audit --no-fund
 
-      - name: Run clean web typecheck diagnostic
+      - name: Apply repository formatting
+        run: npx prettier --write apps/worker/src/handlers/canonical.ts
+
+      - name: Commit formatted handler
         shell: bash
         run: |
-          set -o pipefail
-          rm -rf apps/web/.next apps/web/tsconfig.tsbuildinfo
-          find apps/web -name '*.tsbuildinfo' -delete
-          npm run build:packages
-          npm run typecheck -w @easyinsights/web 2>&1 | tee /tmp/web-typecheck.log
-
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: easyinsights-web-typecheck-log
-          path: /tmp/web-typecheck.log
-          if-no-files-found: ignore
-          retention-days: 3
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "Canonical handler already matches Prettier."
+            exit 0
+          fi
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/worker/src/handlers/canonical.ts
+          git commit -m "style: apply canonical handler formatting"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
