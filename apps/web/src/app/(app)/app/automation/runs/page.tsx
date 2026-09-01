@@ -8,12 +8,12 @@ export default async function Runs() {
     listDocuments(p, 'agent_runs', 50, { createdAt: -1 }),
     listDocuments(p, 'connector_runs', 50, { createdAt: -1 }),
   ]);
-  const rows = [
+  const rows: Record<string, unknown>[] = [
     ...workflows.map((r) => ({ ...r, runType: 'workflow' })),
     ...agents.map((r) => ({ ...r, runType: 'agent' })),
     ...connectors.map((r) => ({ ...r, runType: 'connector' })),
   ]
-    .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+    .sort((a, b) => String(b['createdAt']).localeCompare(String(a['createdAt'])))
     .slice(0, 100);
   return (
     <CapabilityPage
@@ -25,7 +25,7 @@ export default async function Runs() {
         {
           key: 'name',
           label: 'Name',
-          render: (r) => text(r.name, r.agentId ? r.agentId : r.workflowId),
+          render: (r) => text(r.name, text(r.agentId ?? r.workflowId)),
         },
         { key: 'status', label: 'Status', render: (r) => <StatusBadge value={r.status} /> },
         { key: 'attempt', label: 'Attempt' },

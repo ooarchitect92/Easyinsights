@@ -45,14 +45,15 @@ export async function POST(request: Request) {
         const now = new Date();
         const rawId = `raw_${opaqueToken(12)}`;
         const canonicalId = `evt_${opaqueToken(12)}`;
+        const inputIdentifiers = input.identifiers ?? {};
         const identifiers = {
-          ...(input.identifiers.email
-            ? { emailHash: sha256(normalizeEmail(input.identifiers.email)) }
+          ...(inputIdentifiers.email
+            ? { emailHash: sha256(normalizeEmail(inputIdentifiers.email)) }
             : {}),
-          ...(input.identifiers.phone
-            ? { phoneHash: sha256(normalizePhone(input.identifiers.phone)) }
+          ...(inputIdentifiers.phone
+            ? { phoneHash: sha256(normalizePhone(inputIdentifiers.phone)) }
             : {}),
-          ...(input.identifiers.externalId ? { externalId: input.identifiers.externalId } : {}),
+          ...(inputIdentifiers.externalId ? { externalId: inputIdentifiers.externalId } : {}),
         };
         await db.collection('raw_events').insertOne(
           {
