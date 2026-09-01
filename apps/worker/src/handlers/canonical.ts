@@ -140,9 +140,7 @@ export async function handleCanonical(
     source,
     eventTime: event.eventTime as Date | string,
     ...(event.campaign?.medium ? { medium: String(event.campaign.medium) } : {}),
-    ...(event.campaign?.campaignId
-      ? { campaignId: String(event.campaign.campaignId) }
-      : {}),
+    ...(event.campaign?.campaignId ? { campaignId: String(event.campaign.campaignId) } : {}),
   };
   const journeyFilter: Filter<JourneyRecord> = {
     organizationId: message.scope.organizationId,
