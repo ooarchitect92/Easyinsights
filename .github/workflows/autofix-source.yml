@@ -1,0 +1,93 @@
+name: Autofix EasyInsights source
+
+on:
+  push:
+    branches:
+      - codex/easyinsights-production-20260901
+
+permissions:
+  contents: write
+
+jobs:
+  format-and-repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.14.0
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - run: npm ci --no-audit --no-fund
+
+      - name: Repair production Kustomize patch targeting
+        shell: bash
+        run: |
+          cat > deploy/kubernetes/overlays/production/production-config.yaml <<'EOF'
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: easyinsights-config
+            namespace: easyinsights
+          data:
+            APP_BASE_URL: https://marketing.example.com
+            KAFKA_CLIENT_ID: easyinsights-production
+            KAFKA_GROUP_ID: easyinsights-production-consumer
+            LIVE_ACTIVATION_ENABLED: 'false'
+          EOF
+
+          cat > deploy/kubernetes/overlays/production/production-replicas.yaml <<'EOF'
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: easyinsights-web
+            namespace: easyinsights
+          spec:
+            replicas: 3
+          ---
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: easyinsights-outbox
+            namespace: easyinsights
+          spec:
+            replicas: 2
+          ---
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: easyinsights-consumer
+            namespace: easyinsights
+          spec:
+            replicas: 4
+          EOF
+
+      - name: Format the complete repository
+        run: npm run format
+
+      - name: Validate repaired manifests
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v1.32.0
+
+      - run: kubectl kustomize deploy/kubernetes/overlays/production > /tmp/easyinsights-kubernetes.yaml
+
+      - name: Commit source corrections
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --all
+          if git diff --cached --quiet; then
+            echo "No source corrections were required."
+            exit 0
+          fi
+          git commit -m "fix: format source and repair production Kubernetes overlay"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
