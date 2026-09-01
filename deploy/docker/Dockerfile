@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-FROM node:22.14-alpine AS dependencies
+FROM node:26.8-alpine AS dependencies
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN apk add --no-cache libc6-compat
@@ -17,7 +17,7 @@ RUN npm run build
 FROM build AS tooling
 ENTRYPOINT []
 
-FROM node:22.14-alpine AS web
+FROM node:26.8-alpine AS web
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
 RUN apk add --no-cache tini && mkdir -p /app/.next/cache && chown -R node:node /app
@@ -29,7 +29,7 @@ EXPOSE 3000
 ENTRYPOINT ["/sbin/tini","--"]
 CMD ["sh","-c","if [ -f apps/web/server.js ]; then exec node apps/web/server.js; else exec node server.js; fi"]
 
-FROM node:22.14-alpine AS worker
+FROM node:26.8-alpine AS worker
 WORKDIR /app
 ENV NODE_ENV=production
 RUN apk add --no-cache tini && chown -R node:node /app
