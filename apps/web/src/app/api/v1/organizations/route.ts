@@ -1,4 +1,4 @@
-import { publicDocument, tenantFilter } from '@easyinsights/core';
+import { publicDocument } from '@easyinsights/core';
 import { handleApi } from '@/server/api';
 export async function GET(request: Request) {
   return handleApi(

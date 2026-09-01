@@ -9,7 +9,6 @@ import {
   opaqueToken,
   retentionDate,
   sha256,
-  tenantFilter,
   withTransaction,
 } from '@easyinsights/core';
 import { ApiError, handlePublicApi } from '@/server/api';

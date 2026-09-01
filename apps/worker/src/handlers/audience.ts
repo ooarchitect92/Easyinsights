@@ -1,6 +1,6 @@
 import type { ClientSession, Db, Document } from 'mongodb';
 import type { AudienceRule } from '@easyinsights/contracts';
-import { config, enqueueEvent, opaqueToken, tenantFilter } from '@easyinsights/core';
+import { config, opaqueToken, tenantFilter } from '@easyinsights/core';
 import type { RuntimeMessage } from '../message.js';
 import { markRun, requiredString } from './shared.js';
 function readPath(value: unknown, path: string): unknown {

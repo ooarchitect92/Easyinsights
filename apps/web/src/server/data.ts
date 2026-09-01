@@ -1,4 +1,4 @@
-import type { Document, Sort } from 'mongodb';
+import type { Sort } from 'mongodb';
 import type { Principal } from '@easyinsights/contracts';
 import { getCache, getDb, publicDocument, tenantFilter } from '@easyinsights/core';
 export async function listDocuments(

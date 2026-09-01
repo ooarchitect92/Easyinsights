@@ -9,7 +9,6 @@ import {
   opaqueToken,
   retentionDate,
   sha256,
-  withTransaction,
 } from '@easyinsights/core';
 import { handleApi, idempotency, parseBody, ApiError } from '@/server/api';
 export async function GET(request: Request) {

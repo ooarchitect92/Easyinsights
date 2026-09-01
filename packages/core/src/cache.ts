@@ -40,7 +40,9 @@ export class RuntimeCache {
         local.set(k, value, { ttl: 15_000 });
         return JSON.parse(value) as T;
       }
-    } catch {}
+    } catch {
+      // Redis is an optional acceleration layer; MongoDB remains authoritative.
+    }
     return null;
   }
   async set<T>(key: string, value: T, ttlSeconds: number): Promise<void> {
@@ -49,14 +51,18 @@ export class RuntimeCache {
     local.set(k, encoded, { ttl: Math.min(ttlSeconds * 1000, 30_000) });
     try {
       await getRedis().set(k, encoded, 'EX', ttlSeconds);
-    } catch {}
+    } catch {
+      // Redis is an optional acceleration layer; MongoDB remains authoritative.
+    }
   }
   async remove(key: string): Promise<void> {
     const k = this.key(key);
     local.delete(k);
     try {
       await getRedis().del(k);
-    } catch {}
+    } catch {
+      // Redis is an optional acceleration layer; MongoDB remains authoritative.
+    }
   }
   async invalidatePrefix(prefix: string): Promise<number> {
     const full = this.key(prefix);
@@ -71,7 +77,9 @@ export class RuntimeCache {
           removed += await getRedis().del(...keys);
         }
       } while (cursor !== '0');
-    } catch {}
+    } catch {
+      // Redis is an optional acceleration layer; MongoDB remains authoritative.
+    }
     return removed;
   }
   async getOrLoad<T>(key: string, ttlSeconds: number, loader: () => Promise<T>): Promise<T> {
