@@ -71,6 +71,24 @@ jobs:
       - name: Format the complete repository
         run: npm run format
 
+      - name: Emit formatted workflow files for the privileged GitHub API commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in \
+            .github/workflows/ci.yml \
+            .github/workflows/codeql.yml \
+            .github/workflows/containers.yml
+          do
+            echo "FORMATTED_WORKFLOW_BEGIN=${file}"
+            base64 -w0 "${file}"
+            echo
+            echo "FORMATTED_WORKFLOW_END=${file}"
+          done
+
+      - name: Restore workflow files before the Actions-token commit
+        run: git restore --source=HEAD -- .github/workflows
+
       - name: Validate repaired manifests
         uses: azure/setup-kubectl@v4
         with:
@@ -78,7 +96,7 @@ jobs:
 
       - run: kubectl kustomize deploy/kubernetes/overlays/production > /tmp/easyinsights-kubernetes.yaml
 
-      - name: Commit source corrections
+      - name: Commit non-workflow source corrections
         shell: bash
         run: |
           set -euo pipefail
@@ -86,7 +104,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add --all
           if git diff --cached --quiet; then
-            echo "No source corrections were required."
+            echo "No non-workflow source corrections were required."
             exit 0
           fi
           git commit -m "fix: format source and repair production Kubernetes overlay"
