@@ -64,6 +64,6 @@ export async function enqueueEvent(
     expiresAt: retentionDate(config.outboxTtlDays),
   };
   if (input.causationId !== undefined) doc.causationId = input.causationId;
-  await db.collection<OutboxDocument>('outbox').insertOne(doc, { session });
+  await db.collection<OutboxDocument>('outbox').insertOne(doc, session ? { session } : undefined);
   return id;
 }

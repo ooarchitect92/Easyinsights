@@ -1,4 +1,4 @@
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
 import { LRUCache } from 'lru-cache';
 import { config } from './config.js';
 let redis: Redis | undefined;
@@ -15,7 +15,7 @@ export function getRedis(): Redis {
     enableOfflineQueue: true,
     maxRetriesPerRequest: 2,
     connectTimeout: 3000,
-    retryStrategy: (times) => Math.min(times * 100, 2000),
+    retryStrategy: (times: number) => Math.min(times * 100, 2000),
   });
   return redis;
 }

@@ -17,7 +17,7 @@
     "dev": "npm run build:packages && concurrently -k -n web,outbox,consumer -c auto \"npm run dev -w @easyinsights/web\" \"WORKER_MODE=outbox npm run dev -w @easyinsights/worker\" \"WORKER_MODE=consumer npm run dev -w @easyinsights/worker\"",
     "build": "npm run build:packages && npm run build -w @easyinsights/web && npm run build -w @easyinsights/worker",
     "start": "npm run start -w @easyinsights/web",
-    "typecheck": "npm run typecheck -w @easyinsights/contracts && npm run typecheck -w @easyinsights/core && npm run typecheck -w @easyinsights/web && npm run typecheck -w @easyinsights/worker",
+    "typecheck": "npm run build:packages && npm run typecheck -w @easyinsights/web && npm run typecheck -w @easyinsights/worker",
     "lint": "eslint . --max-warnings=0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

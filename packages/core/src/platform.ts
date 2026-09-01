@@ -285,7 +285,7 @@ export async function appendAudit(
 ): Promise<void> {
   const collection = db.collection('audit_logs');
   const previous = await collection
-    .find(tenantFilter(input.scope), { session: input.session })
+    .find(tenantFilter(input.scope), input.session ? { session: input.session } : undefined)
     .sort({ sequence: -1 })
     .limit(1)
     .next();
@@ -321,7 +321,7 @@ export async function appendAudit(
       createdAt: occurredAt,
       dataClassification: 'internal',
     },
-    { session: input.session },
+    input.session ? { session: input.session } : undefined,
   );
 }
 export function publicDocument<T extends Document>(doc: T): Omit<T, '_id'> {
