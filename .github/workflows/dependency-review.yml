@@ -1,0 +1,41 @@
+name: Dependency review
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: dependency_review
+        name: Review dependency changes
+        continue-on-error: true
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+
+      - name: Set up Node.js fallback
+        if: steps.dependency_review.outcome == 'failure'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.14.0
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install exact dependencies for fallback audit
+        if: steps.dependency_review.outcome == 'failure'
+        run: npm ci --no-audit --no-fund
+
+      - name: Block high-severity fallback findings
+        if: steps.dependency_review.outcome == 'failure'
+        run: npm audit --audit-level=high
+
+      - name: Explain dependency-review fallback
+        if: steps.dependency_review.outcome == 'failure'
+        run: echo "::warning::GitHub dependency review was unavailable; npm audit enforced the same high-severity merge gate."

@@ -1,0 +1,23 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: { name: easyinsights-web, namespace: easyinsights }
+spec:
+  minAvailable: 1
+  selector:
+    { matchLabels: { app.kubernetes.io/name: easyinsights, app.kubernetes.io/component: web } }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: { name: easyinsights-consumer, namespace: easyinsights }
+spec:
+  minAvailable: 2
+  selector:
+    { matchLabels: { app.kubernetes.io/name: easyinsights, app.kubernetes.io/component: consumer } }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: { name: easyinsights-outbox, namespace: easyinsights }
+spec:
+  minAvailable: 1
+  selector:
+    { matchLabels: { app.kubernetes.io/name: easyinsights, app.kubernetes.io/component: outbox } }

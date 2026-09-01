@@ -1,0 +1,52 @@
+{
+  "name": "easyinsights-marketing-os",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "npm@10.9.2",
+  "engines": {
+    "node": ">=22.14.0 <23"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "clean": "node scripts/clean.mjs",
+    "build:packages": "npm run build -w @easyinsights/contracts && npm run build -w @easyinsights/core",
+    "dev": "npm run build:packages && concurrently -k -n web,outbox,consumer -c auto \"npm run dev -w @easyinsights/web\" \"WORKER_MODE=outbox npm run dev -w @easyinsights/worker\" \"WORKER_MODE=consumer npm run dev -w @easyinsights/worker\"",
+    "build": "npm run build:packages && npm run build -w @easyinsights/web && npm run build -w @easyinsights/worker",
+    "start": "npm run start -w @easyinsights/web",
+    "typecheck": "npm run build:packages && npm run typecheck -w @easyinsights/web && npm run typecheck -w @easyinsights/worker",
+    "lint": "eslint . --max-warnings=0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "indexes": "tsx scripts/create-indexes.ts",
+    "topics": "tsx scripts/create-topics.ts",
+    "seed": "tsx scripts/seed.ts",
+    "bootstrap": "npm run indexes && npm run topics && npm run seed",
+    "smoke": "tsx scripts/smoke-test.ts",
+    "validate": "node scripts/validate-repository.mjs",
+    "quality": "bash scripts/quality-gate.sh",
+    "compose:up": "docker compose up --build -d",
+    "compose:down": "docker compose down -v",
+    "compose:logs": "docker compose logs -f web outbox consumer",
+    "k8s:render": "kubectl kustomize deploy/kubernetes/overlays/production"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/node": "^24.10.1",
+    "concurrently": "^9.2.1",
+    "eslint": "^9.39.1",
+    "eslint-config-next": "16.3.3",
+    "prettier": "^3.6.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.48.0",
+    "vitest": "^4.0.14",
+    "@next/eslint-plugin-next": "16.3.3",
+    "kafkajs": "^2.2.4"
+  }
+}

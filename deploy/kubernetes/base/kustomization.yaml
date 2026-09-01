@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - service-account.yaml
+  - configmap.yaml
+  - web-deployment.yaml
+  - web-service.yaml
+  - outbox-deployment.yaml
+  - consumer-deployment.yaml
+  - bootstrap-job.yaml
+  - ingress.yaml
+  - hpa.yaml
+  - pdb.yaml
+  - network-policy.yaml
+commonLabels:
+  app.kubernetes.io/part-of: easyinsights-marketing-os

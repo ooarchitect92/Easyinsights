@@ -1,0 +1,161 @@
+name: easyinsights
+x-app-environment: &app-environment
+  NODE_ENV: development
+  APP_BASE_URL: http://localhost:3000
+  MONGODB_URI: mongodb://mongo:27017/easyinsights?replicaSet=rs0&directConnection=true
+  MONGODB_DB: easyinsights
+  REDIS_URL: redis://redis:6379
+  KAFKA_BROKERS: kafka:9092
+  KAFKA_CLIENT_ID: easyinsights-local
+  KAFKA_GROUP_ID: easyinsights-local-consumer
+  SESSION_COOKIE_NAME: ei_session
+  SESSION_TTL_SECONDS: 28800
+  RAW_EVENT_TTL_DAYS: 90
+  IDEMPOTENCY_TTL_HOURS: 24
+  OUTBOX_TTL_DAYS: 14
+  RUN_TTL_DAYS: 90
+  PASSWORD_PEPPER: ${PASSWORD_PEPPER:-local-development-pepper-change-this-value}
+  WEBHOOK_SIGNING_SECRET: ${WEBHOOK_SIGNING_SECRET:-local-development-webhook-secret-change}
+  CREDENTIAL_ENCRYPTION_KEY: ${CREDENTIAL_ENCRYPTION_KEY:-MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}
+  LIVE_ACTIVATION_ENABLED: 'false'
+  SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@easyinsights.local}
+  SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-ChangeMe-Strong-2026!}
+services:
+  mongo:
+    image: mongo:8.0.14
+    command: ['mongod', '--replSet', 'rs0', '--bind_ip_all', '--port', '27017']
+    restart: unless-stopped
+    volumes: ['mongo-data:/data/db']
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          "mongosh --quiet --eval 'db.adminCommand({ping:1}).ok' localhost:27017/admin | grep 1",
+        ]
+      interval: 5s
+      timeout: 4s
+      retries: 30
+    networks: [data]
+  mongo-init:
+    image: mongo:8.0.14
+    depends_on:
+      mongo: { condition: service_healthy }
+    restart: 'no'
+    command:
+      [
+        'bash',
+        '-lc',
+        'mongosh --host mongo:27017 --quiet --eval ''try { rs.status().ok } catch (e) { rs.initiate({_id:"rs0",members:[{_id:0,host:"mongo:27017"}]}) }'' && until mongosh --host mongo:27017 --quiet --eval ''db.hello().isWritablePrimary'' | grep true; do sleep 2; done',
+      ]
+    networks: [data]
+  redis:
+    image: redis:8.2.2-alpine
+    command:
+      [
+        'redis-server',
+        '--save',
+        '',
+        '--appendonly',
+        'no',
+        '--maxmemory',
+        '256mb',
+        '--maxmemory-policy',
+        'allkeys-lru',
+        '--timeout',
+        '0',
+      ]
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    networks: [data]
+  kafka:
+    image: apache/kafka:4.1.1
+    restart: unless-stopped
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
+      KAFKA_NUM_PARTITIONS: 6
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          '/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1',
+        ]
+      interval: 8s
+      timeout: 6s
+      retries: 40
+    networks: [data]
+  bootstrap:
+    build: { context: ., dockerfile: deploy/docker/Dockerfile, target: tooling }
+    environment: *app-environment
+    depends_on:
+      mongo-init: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+    command: ['npm', 'run', 'bootstrap']
+    restart: 'no'
+    networks: [data]
+  web:
+    build: { context: ., dockerfile: deploy/docker/Dockerfile, target: web }
+    environment: *app-environment
+    depends_on:
+      bootstrap: { condition: service_completed_successfully }
+    ports: ['3000:3000']
+    restart: unless-stopped
+    read_only: true
+    tmpfs: ['/tmp', '/app/.next/cache:uid=1000,gid=1000']
+    security_opt: ['no-new-privileges:true']
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:3000/api/health/live >/dev/null']
+      interval: 10s
+      timeout: 4s
+      retries: 20
+      start_period: 20s
+    networks: [edge, data]
+  outbox:
+    build: { context: ., dockerfile: deploy/docker/Dockerfile, target: worker }
+    environment: { <<: *app-environment, WORKER_MODE: outbox, HEALTH_PORT: 8081 }
+    depends_on:
+      bootstrap: { condition: service_completed_successfully }
+    restart: unless-stopped
+    read_only: true
+    tmpfs: ['/tmp']
+    security_opt: ['no-new-privileges:true']
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:8081/health/live >/dev/null']
+      interval: 10s
+      timeout: 4s
+      retries: 20
+    networks: [data]
+  consumer:
+    build: { context: ., dockerfile: deploy/docker/Dockerfile, target: worker }
+    environment: { <<: *app-environment, WORKER_MODE: consumer, HEALTH_PORT: 8081 }
+    depends_on:
+      bootstrap: { condition: service_completed_successfully }
+    restart: unless-stopped
+    read_only: true
+    tmpfs: ['/tmp']
+    security_opt: ['no-new-privileges:true']
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:8081/health/live >/dev/null']
+      interval: 10s
+      timeout: 4s
+      retries: 20
+    networks: [data]
+volumes: { mongo-data: {} }
+networks:
+  edge: {}
+  data: { internal: true }
