@@ -19,7 +19,7 @@
   "dependencies": {
     "@easyinsights/contracts": "1.0.0",
     "ioredis": "^5.8.2",
-    "lru-cache": "^11.2.2",
+    "lru-cache": "^11.5.3",
     "mongodb": "^7.0.0"
   },
   "devDependencies": {
