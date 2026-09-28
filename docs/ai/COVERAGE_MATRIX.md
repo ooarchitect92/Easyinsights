@@ -25,3 +25,8 @@
 
 | Forecast durable submission | `apps/web/src/app/api/v1/ai/forecast/route.ts` | idempotent job/outbox acceptance |
 | Forecast worker execution | `packages/ai/src/providers/ml-service/client.ts`, `apps/ai-worker/src/worker.ts` | external execution outside MongoDB transaction |
+
+| Exact event semantic mapping | `apps/worker/src/handlers/canonical.ts` | `apps/worker/src/handlers/canonical.test.ts` |
+| Out-of-order first/last timestamps | `apps/worker/src/handlers/canonical.ts` | monotonic timestamp logic; integration coverage still pending |
+| Historical conversion preservation | `apps/worker/src/handlers/canonical.ts` | conversion state is monotonic; integration coverage still pending |
+| Observed vs estimated value separation | `apps/worker/src/handlers/canonical.ts` | observed revenue and estimated deal value stored separately |
