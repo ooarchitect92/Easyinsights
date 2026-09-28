@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest';
-import {modelAssignment,routeReadiness} from './index.js';
+import {modelAssignment,routeReadiness} from '../index.js';
 describe('multi-model registry',()=>{
   it('preserves requested assignments',()=>{
     expect(modelAssignment('analyst').requestedIdentifier).toBe('gpt-6-astra');

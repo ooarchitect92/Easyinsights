@@ -18,6 +18,7 @@ const topics = [
   'easyinsights.commands.activation',
   'easyinsights.commands.report',
   'easyinsights.events.approval',
+  'easyinsights.events.ai',
   'easyinsights.dead-letter',
 ];
 await admin.createTopics({

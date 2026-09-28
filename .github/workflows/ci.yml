@@ -83,3 +83,12 @@ jobs:
           tags: easyinsights-worker:ci
           cache-from: type=gha,scope=worker
           cache-to: type=gha,mode=max,scope=worker
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/docker/Dockerfile
+          target: ai-worker
+          push: false
+          tags: easyinsights-ai-worker:ci
+          cache-from: type=gha,scope=ai-worker
+          cache-to: type=gha,mode=max,scope=ai-worker

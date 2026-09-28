@@ -11,7 +11,7 @@ export function routeReadiness(task:AiTask,env:Env=process.env):RouteReadiness{
   const assignment=modelAssignment(task);const reasons:string[]=[];const hosted=assignment.kind==='hosted';
   const key=assignment.provider==='openai'?env.OPENAI_API_KEY:assignment.provider==='anthropic'?env.ANTHROPIC_API_KEY:assignment.provider==='google'?env.GOOGLE_API_KEY:assignment.provider==='voyage'?env.VOYAGE_API_KEY:undefined;
   const access=assignment.provider==='openai'?truthy(env.AI_OPENAI_ACCESS_VERIFIED):assignment.provider==='anthropic'?truthy(env.AI_ANTHROPIC_ACCESS_VERIFIED):assignment.provider==='google'?truthy(env.AI_GOOGLE_ACCESS_VERIFIED):assignment.provider==='voyage'?truthy(env.AI_VOYAGE_ACCESS_VERIFIED):false;
-  const docs=assignment.provider==='openai'?assignment.documentation==='verified'&&truthy(env.AI_OPENAI_DOCS_VERIFIED):assignment.documentation==='verified';
+  const docs=assignment.provider==='openai'?(assignment.documentation==='verified'||(assignment.documentation==='identifier_verified'&&truthy(env.AI_OPENAI_DOCS_VERIFIED))):assignment.documentation==='verified';
   const implemented=task==='analyst'||task==='embedding'||task==='reranking';
   if(!implemented)reasons.push('Execution adapter is not implemented in this delivery slice.');
   if(hosted&&!docs)reasons.push('Exact documentation/endpoint capability verification is incomplete.');

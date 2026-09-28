@@ -4,6 +4,8 @@ Baseline commit: `d578bcb7930e21c765a40da8013c34d23cdbd6bd`
 
 Working branch: `feature/multi-model-intelligence`
 
+Baseline CI evidence: GitHub Actions run `36458377631` completed successfully for the baseline commit before implementation edits.
+
 ## Implemented in the first end-to-end slice
 
 - Central task/model registry containing every requested assignment.
