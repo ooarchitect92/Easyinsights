@@ -53,3 +53,13 @@ Missing credentials block live qualification, not implementation. Hosted routes 
 - Added `POST /api/v1/ai/forecast` with tenant permission, idempotent acceptance, usage reservation, audit and transactional outbox.
 - The AI worker now routes `forecast_baseline` jobs to the authenticated internal ML service outside MongoDB transactions.
 - Forecast-baseline readiness is implemented; specialist forecast candidates remain separately unconfigured/untrained.
+
+
+## Upstream semantic hardening — 2026-09-28
+
+- Replaced substring-based qualification detection with explicit event-name mappings so events such as `unqualified_lead` and `lead_disqualified` cannot be misclassified as qualified.
+- Preserved first/last customer and journey timestamps under out-of-order delivery.
+- Preserved historical conversion state when later non-purchase events arrive.
+- Separated observed payment revenue from estimated deal value while retaining the legacy `lifetimeValue` field as observed revenue for compatibility.
+- Added `heuristicScore` explicitly rather than reinterpreting the legacy lead score as a calibrated probability.
+- Added regression tests for qualification, conversion and estimated-value event semantics.
