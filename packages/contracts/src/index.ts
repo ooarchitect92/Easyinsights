@@ -314,18 +314,40 @@ export interface ApiFailure {
   meta: { requestId: string; generatedAt: string };
 }
 
-
 export const aiTaskSchema = z.enum([
-  'analyst','recommendation_reviewer','multimodal_extraction','embedding','reranking',
-  'call_transcription','live_voice','creative_image','lead_qualification','paid_conversion',
-  'customer_churn','future_customer_value','forecast_primary','forecast_challenger',
-  'forecast_baseline','marketing_mix','incrementality','anomaly_detection',
-  'behavioral_segments','offer_ranking','probability_calibration',
+  'analyst',
+  'recommendation_reviewer',
+  'multimodal_extraction',
+  'embedding',
+  'reranking',
+  'call_transcription',
+  'live_voice',
+  'creative_image',
+  'lead_qualification',
+  'paid_conversion',
+  'customer_churn',
+  'future_customer_value',
+  'forecast_primary',
+  'forecast_challenger',
+  'forecast_baseline',
+  'marketing_mix',
+  'incrementality',
+  'anomaly_detection',
+  'behavioral_segments',
+  'offer_ranking',
+  'probability_calibration',
 ]);
 export type AiTask = z.infer<typeof aiTaskSchema>;
 
 export const aiJobStatusSchema = z.enum([
-  'queued','claimed','running','completed','blocked','failed','outcome_unknown','cancelled',
+  'queued',
+  'claimed',
+  'running',
+  'completed',
+  'blocked',
+  'failed',
+  'outcome_unknown',
+  'cancelled',
 ]);
 export type AiJobStatus = z.infer<typeof aiJobStatusSchema>;
 
