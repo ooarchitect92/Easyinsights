@@ -25,7 +25,6 @@ Python ML service/training pipelines, point-in-time datasets, fitted artifacts, 
 
 Missing credentials block live qualification, not implementation. Hosted routes remain disabled by default.
 
-
 ## Reliability hardening added after the first slice
 
 - Analysis submission now requires and persists through the existing tenant-scoped idempotency mechanism so a repeated client request cannot create a second logical job.
