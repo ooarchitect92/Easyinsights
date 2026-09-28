@@ -372,3 +372,12 @@ export const aiResultMetadataSchema = z.object({
   createdAt: z.string().datetime(),
   completedAt: z.string().datetime().optional(),
 });
+
+
+export const aiForecastRequestSchema = z.object({
+  values: z.array(z.number().finite()).min(2).max(10000),
+  horizon: z.number().int().min(1).max(365),
+  seasonLength: z.number().int().min(1).max(365),
+  task: z.literal('forecast_baseline').default('forecast_baseline'),
+});
+export type AiForecastRequest = z.infer<typeof aiForecastRequestSchema>;

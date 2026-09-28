@@ -46,3 +46,10 @@ Missing credentials block live qualification, not implementation. Hosted routes 
 - Added a working seasonal-naive forecast baseline with unit/API tests; it is explicitly deterministic and does not fabricate uncertainty.
 - Added an internal numerical-model registry that keeps requested fitted/checkpoint models explicitly untrained or unconfigured until real artifacts and evaluations exist.
 - Added a dedicated non-root container, Compose service and Python CI job.
+
+
+## Durable forecast-baseline execution — 2026-09-28
+
+- Added `POST /api/v1/ai/forecast` with tenant permission, idempotent acceptance, usage reservation, audit and transactional outbox.
+- The AI worker now routes `forecast_baseline` jobs to the authenticated internal ML service outside MongoDB transactions.
+- Forecast-baseline readiness is implemented; specialist forecast candidates remain separately unconfigured/untrained.

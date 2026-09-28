@@ -1,5 +1,5 @@
 import { Kafka, logLevel } from 'kafkajs';
-import { executeHosted, ProviderExecutionError } from '@easyinsights/ai';
+import { executeTask, ProviderExecutionError } from '@easyinsights/ai';
 import {
   config,
   enqueueEvent,
@@ -260,11 +260,12 @@ async function processJob(jobId: string, scope: TenantScope) {
       },
       Math.max(5000, Math.floor((config.aiLeaseSeconds * 1000) / 3)),
     );
-    const outcome = await executeHosted({
+    const outcome = await executeTask({
       task: job.task as AiTask,
       prompt: String(job.inputSnapshot?.prompt || ''),
       context: (job.inputSnapshot?.context || {}) as Record<string, unknown>,
       evidence: (job.inputSnapshot?.evidence || {}) as Record<string, unknown>,
+      payload: (job.inputSnapshot?.payload || {}) as Record<string, unknown>,
       timeoutMs: config.aiDeadlineSeconds * 1000,
     });
     await finalize(job, claimed.fencingToken, outcome);

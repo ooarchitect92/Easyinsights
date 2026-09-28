@@ -21,6 +21,8 @@ x-app-environment: &app-environment
   AI_HOSTED_ROUTES_ENABLED: 'false'
   AI_JOB_LEASE_SECONDS: 120
   AI_JOB_DEADLINE_SECONDS: 90
+  ML_SERVICE_URL: http://ml-service:8090
+  ML_INTERNAL_TOKEN: ${ML_INTERNAL_TOKEN:-local-development-ml-internal-token-change-this}
   OPENAI_API_KEY: ${OPENAI_API_KEY:-}
   AI_OPENAI_DOCS_VERIFIED: ${AI_OPENAI_DOCS_VERIFIED:-false}
   AI_OPENAI_ACCESS_VERIFIED: ${AI_OPENAI_ACCESS_VERIFIED:-false}
@@ -171,6 +173,7 @@ services:
     environment: { <<: *app-environment, HEALTH_PORT: 8082 }
     depends_on:
       bootstrap: { condition: service_completed_successfully }
+      ml-service: { condition: service_healthy }
     restart: unless-stopped
     read_only: true
     tmpfs: ['/tmp']

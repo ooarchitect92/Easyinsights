@@ -7,3 +7,5 @@ export * from './routing/executor.js';
 export * from './providers/anthropic/messages.js';
 export * from './providers/google/generate.js';
 export * from './providers/google/live.js';
+
+export * from './providers/ml-service/client.js';

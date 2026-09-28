@@ -51,6 +51,7 @@ export function routeReadiness(task: AiTask, env: Env = process.env): RouteReadi
     'call_transcription',
     'live_voice',
     'creative_image',
+    'forecast_baseline',
   ].includes(task);
   if (!implemented) reasons.push('Execution adapter is not implemented in this delivery slice.');
   if (hosted && !docs)

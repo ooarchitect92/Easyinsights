@@ -22,3 +22,6 @@
 
 | Internal ML service authentication | `apps/ml-service/src/easyinsights_ml/auth.py` | `apps/ml-service/tests/test_service.py` |
 | Seasonal-naive forecast baseline | `apps/ml-service/src/easyinsights_ml/models/forecasting/seasonal_naive.py` | unit + authenticated API test |
+
+| Forecast durable submission | `apps/web/src/app/api/v1/ai/forecast/route.ts` | idempotent job/outbox acceptance |
+| Forecast worker execution | `packages/ai/src/providers/ml-service/client.ts`, `apps/ai-worker/src/worker.ts` | external execution outside MongoDB transaction |
