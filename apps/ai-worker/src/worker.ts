@@ -6,14 +6,58 @@ import type {AiTask,TenantScope} from '@easyinsights/contracts';
 const topic='easyinsights.commands.ai';
 const workerId='aiw_'+opaqueToken(8);
 
+async function markExpiredRunningUnknown(job: any, scope: TenantScope) {
+  await withTransaction(async (db, session) => {
+    const now = new Date();
+    const updated = await db.collection('ai_jobs').updateOne(
+      {
+        ...tenantFilter(scope),
+        id: job.id,
+        status: 'running',
+        fencingToken: Number(job.fencingToken || 0),
+        leaseUntil: { $lt: now },
+      },
+      {
+        $set: {
+          status: 'outcome_unknown',
+          error:
+            'Execution lease expired while an external model request may have been in flight. Manual or provider-aware reconciliation is required before retry.',
+          completedAt: now,
+          updatedAt: now,
+        },
+        $unset: { leaseUntil: '', workerId: '' },
+      },
+      { session },
+    );
+    if (updated.modifiedCount === 1) {
+      await db.collection('ai_usage_reservations').updateOne(
+        { ...tenantFilter(scope), jobId: job.id },
+        { $set: { status: 'needs_reconciliation', reconciledAt: now } },
+        { session },
+      );
+    }
+  });
+}
+
 async function claim(jobId:string,scope:TenantScope){
   return withTransaction(async(db,session)=>{
     const now=new Date();
     const current:any=await db.collection('ai_jobs').findOne({...tenantFilter(scope),id:jobId},{session});
     if(!current)return null;
     if(['completed','blocked','failed','cancelled','outcome_unknown'].includes(String(current.status)))return null;
-    const claimable=current.status==='queued'||(['claimed','running'].includes(String(current.status))&&current.leaseUntil instanceof Date&&current.leaseUntil<now);
-    if(!claimable)return null;
+    if (
+      current.status === 'running' &&
+      current.leaseUntil instanceof Date &&
+      current.leaseUntil < now
+    ) {
+      return { expiredRunning: current } as const;
+    }
+    const claimable =
+      current.status === 'queued' ||
+      (current.status === 'claimed' &&
+        current.leaseUntil instanceof Date &&
+        current.leaseUntil < now);
+    if (!claimable) return null;
     const fencingToken=Number(current.fencingToken||0)+1;
     const leaseUntil=new Date(Date.now()+config.aiLeaseSeconds*1000);
     const update=await db.collection('ai_jobs').updateOne(
@@ -54,19 +98,52 @@ async function markProviderOutcomeUnknown(job:any,fencingToken:number,error:Prov
   });
 }
 
-async function processJob(jobId:string,scope:TenantScope){
-  const claimed=await claim(jobId,scope);if(!claimed)return;
-  const job:any=claimed.job;
-  try{
-    const outcome=await executeHosted({task:job.task as AiTask,prompt:String(job.inputSnapshot?.prompt||''),context:(job.inputSnapshot?.context||{}) as Record<string,unknown>,evidence:(job.inputSnapshot?.evidence||{}) as Record<string,unknown>,timeoutMs:config.aiDeadlineSeconds*1000});
-    await finalize(job,claimed.fencingToken,outcome);
-  }catch(error){
+async function processJob(jobId: string, scope: TenantScope) {
+  const claimed = await claim(jobId, scope);
+  if (!claimed) return;
+  if ('expiredRunning' in claimed) {
+    await markExpiredRunningUnknown(claimed.expiredRunning, scope);
+    return;
+  }
+  const job: any = claimed.job;
+  let leaseHeartbeat: ReturnType<typeof setInterval> | undefined;
+  try {
+    leaseHeartbeat = setInterval(() => {
+      void withTransaction(async (db, session) => {
+        await db.collection('ai_jobs').updateOne(
+          {
+            ...tenantFilter(scope),
+            id: job.id,
+            status: 'running',
+            fencingToken: claimed.fencingToken,
+          },
+          {
+            $set: {
+              leaseUntil: new Date(Date.now() + config.aiLeaseSeconds * 1000),
+              heartbeatAt: new Date(),
+            },
+          },
+          { session },
+        );
+      }).catch(() => undefined);
+    }, Math.max(5000, Math.floor((config.aiLeaseSeconds * 1000) / 3)));
+    const outcome = await executeHosted({
+      task: job.task as AiTask,
+      prompt: String(job.inputSnapshot?.prompt || ''),
+      context: (job.inputSnapshot?.context || {}) as Record<string, unknown>,
+      evidence: (job.inputSnapshot?.evidence || {}) as Record<string, unknown>,
+      timeoutMs: config.aiDeadlineSeconds * 1000,
+    });
+    await finalize(job, claimed.fencingToken, outcome);
+  } catch (error) {
     if(error instanceof ProviderExecutionError&&error.outcomeUnknown){await markProviderOutcomeUnknown(job,claimed.fencingToken,error);return}
     await withTransaction(async(db,session)=>{
       const scope={organizationId:String(job.organizationId),workspaceId:String(job.workspaceId)};const now=new Date();
       await db.collection('ai_jobs').updateOne({...tenantFilter(scope),id:job.id,status:'running',fencingToken:claimed.fencingToken},{$set:{status:'failed',error:error instanceof Error?error.message:String(error),completedAt:now,updatedAt:now},$unset:{leaseUntil:'',workerId:''}},{session});
       await db.collection('ai_usage_reservations').updateOne({...tenantFilter(scope),jobId:job.id},{$set:{status:'released',reconciledAt:now}},{session});
     });
+  } finally {
+    if (leaseHeartbeat) clearInterval(leaseHeartbeat);
   }
 }
 
@@ -76,11 +153,35 @@ export async function runAiWorker(signal:AbortSignal){
   await consumer.connect();await consumer.subscribe({topic,fromBeginning:false});
   signal.addEventListener('abort',()=>{void consumer.stop()},{once:true});
   try{
-    await consumer.run({partitionsConsumedConcurrently:2,eachMessage:async({message})=>{
-      if(!message.value)return;
-      const parsed=JSON.parse(message.value.toString('utf8')) as any;
-      if(parsed.type!=='ai.job.requested'||!parsed.payload?.jobId||!parsed.scope?.organizationId||!parsed.scope?.workspaceId)return;
-      await processJob(String(parsed.payload.jobId),{organizationId:String(parsed.scope.organizationId),workspaceId:String(parsed.scope.workspaceId)});
-    }});
+    await consumer.run({
+      partitionsConsumedConcurrently: 2,
+      eachMessage: async ({ message, heartbeat }) => {
+        if (!message.value) return;
+        const parsed = JSON.parse(message.value.toString('utf8')) as any;
+        if (
+          parsed.type !== 'ai.job.requested' ||
+          !parsed.payload?.jobId ||
+          !parsed.scope?.organizationId ||
+          !parsed.scope?.workspaceId
+        )
+          return;
+        let stopped = false;
+        const kafkaHeartbeat = (async () => {
+          while (!stopped) {
+            await new Promise((resolve) => setTimeout(resolve, 2500));
+            if (!stopped) await heartbeat();
+          }
+        })();
+        try {
+          await processJob(String(parsed.payload.jobId), {
+            organizationId: String(parsed.scope.organizationId),
+            workspaceId: String(parsed.scope.workspaceId),
+          });
+        } finally {
+          stopped = true;
+          await kafkaHeartbeat.catch(() => undefined);
+        }
+      },
+    });
   }finally{await consumer.disconnect()}
 }

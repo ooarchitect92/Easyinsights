@@ -24,3 +24,10 @@ Baseline CI evidence: GitHub Actions run `36458377631` completed successfully fo
 Python ML service/training pipelines, point-in-time datasets, fitted artifacts, Chronos/Meridian/EconML/HDBSCAN/LightGBM execution, Google media/voice adapters, retrieval ingestion/vector search, evaluation/promotion APIs, remaining AI frontend workflows, Kubernetes assets and live-provider qualification remain pending.
 
 Missing credentials block live qualification, not implementation. Hosted routes remain disabled by default.
+
+
+## Reliability hardening added after the first slice
+
+- Analysis submission now requires and persists through the existing tenant-scoped idempotency mechanism so a repeated client request cannot create a second logical job.
+- The AI worker sends Kafka heartbeats while long execution is running and renews its MongoDB lease under the active fencing token.
+- An expired `running` lease is treated as an externally ambiguous outcome and moved to `outcome_unknown` for reconciliation instead of blindly executing the provider call again.
