@@ -152,6 +152,20 @@ services:
       timeout: 4s
       retries: 20
     networks: [data]
+  ml-service:
+    build: { context: ., dockerfile: deploy/docker/Dockerfile.ml-service }
+    environment:
+      ML_INTERNAL_TOKEN: ${ML_INTERNAL_TOKEN:-local-development-ml-internal-token-change-this}
+    restart: unless-stopped
+    read_only: true
+    tmpfs: ['/tmp']
+    security_opt: ['no-new-privileges:true']
+    healthcheck:
+      test: ['CMD-SHELL', 'python -c "import urllib.request; urllib.request.urlopen(\"http://127.0.0.1:8090/health/ready\")"']
+      interval: 10s
+      timeout: 4s
+      retries: 20
+    networks: [data]
   ai-worker:
     build: { context: ., dockerfile: deploy/docker/Dockerfile, target: ai-worker }
     environment: { <<: *app-environment, HEALTH_PORT: 8082 }

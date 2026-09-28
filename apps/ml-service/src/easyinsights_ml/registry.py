@@ -1,0 +1,15 @@
+MODEL_REGISTRY = [
+    {"task":"lead_qualification","kind":"fitted_estimator","identifier":"catboost.CatBoostClassifier","state":"untrained"},
+    {"task":"paid_conversion","kind":"fitted_estimator","identifier":"catboost.CatBoostClassifier","state":"untrained"},
+    {"task":"customer_churn","kind":"fitted_estimator","identifier":"catboost.CatBoostClassifier","state":"untrained"},
+    {"task":"future_customer_value","kind":"fitted_estimator","identifier":"catboost.CatBoostRegressor","state":"untrained"},
+    {"task":"forecast_primary","kind":"checkpoint","identifier":"amazon/chronos-2","state":"unconfigured"},
+    {"task":"forecast_challenger","kind":"fitted_estimator","identifier":"catboost.CatBoostRegressor","state":"untrained"},
+    {"task":"forecast_baseline","kind":"deterministic_baseline","identifier":"seasonal-naive-v1","state":"active"},
+    {"task":"marketing_mix","kind":"fitted_estimator","identifier":"meridian.model.model.Meridian","state":"untrained"},
+    {"task":"incrementality","kind":"fitted_estimator","identifier":"econml.dml.CausalForestDML","state":"untrained"},
+    {"task":"anomaly_detection","kind":"fitted_estimator","identifier":"sklearn.ensemble.IsolationForest","state":"untrained"},
+    {"task":"behavioral_segments","kind":"fitted_estimator","identifier":"sklearn.cluster.HDBSCAN","state":"untrained"},
+    {"task":"offer_ranking","kind":"fitted_estimator","identifier":"lightgbm.LGBMRanker","state":"untrained"},
+    {"task":"probability_calibration","kind":"component","identifier":"sklearn.calibration.CalibratedClassifierCV","state":"untrained"},
+]

@@ -38,3 +38,11 @@ Missing credentials block live qualification, not implementation. Hosted routes 
 - Google adapters use task-appropriate API shapes rather than a universal chat-completions payload.
 - Added provider-contract tests with mocked network responses; these are offline contract tests and are not live-access evidence.
 - Added `npm run ai:verify-providers` to emit documentation/credential/access/readiness state without printing credentials.
+
+
+## Internal Python ML service foundation — 2026-09-28
+
+- Added an authenticated internal FastAPI ML service under `apps/ml-service`.
+- Added a working seasonal-naive forecast baseline with unit/API tests; it is explicitly deterministic and does not fabricate uncertainty.
+- Added an internal numerical-model registry that keeps requested fitted/checkpoint models explicitly untrained or unconfigured until real artifacts and evaluations exist.
+- Added a dedicated non-root container, Compose service and Python CI job.

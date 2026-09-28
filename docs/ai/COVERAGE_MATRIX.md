@@ -19,3 +19,6 @@
 | Google multimodal/transcription/image adapters | `packages/ai/src/providers/google/generate.ts` | mocked provider contract tests |
 | Google Live voice transport | `packages/ai/src/providers/google/live.ts` | implementation present; live provider smoke test still required |
 | Provider verification report | `scripts/ai/verify-providers.ts` | `npm run ai:verify-providers` |
+
+| Internal ML service authentication | `apps/ml-service/src/easyinsights_ml/auth.py` | `apps/ml-service/tests/test_service.py` |
+| Seasonal-naive forecast baseline | `apps/ml-service/src/easyinsights_ml/models/forecasting/seasonal_naive.py` | unit + authenticated API test |
