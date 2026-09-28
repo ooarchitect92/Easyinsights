@@ -14,3 +14,8 @@
 | Tenant-scoped request idempotency | `apps/web/src/app/api/v1/ai/analysis/route.ts` | existing `idempotency_keys` uniqueness |
 | Kafka + execution lease heartbeat | `apps/ai-worker/src/worker.ts` | heartbeat loop + fenced lease renewal |
 | Expired running lease safety | `apps/ai-worker/src/worker.ts` | transitions to `outcome_unknown` instead of blind replay |
+
+| Anthropic reviewer adapter | `packages/ai/src/providers/anthropic/messages.ts` | mocked provider contract test; exact model remains docs-blocked |
+| Google multimodal/transcription/image adapters | `packages/ai/src/providers/google/generate.ts` | mocked provider contract tests |
+| Google Live voice transport | `packages/ai/src/providers/google/live.ts` | implementation present; live provider smoke test still required |
+| Provider verification report | `scripts/ai/verify-providers.ts` | `npm run ai:verify-providers` |

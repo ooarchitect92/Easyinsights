@@ -23,7 +23,7 @@ export const modelAssignments: ModelAssignment[] = [
     requestedIdentifier: 'gpt-6-astra',
     documentation: 'identifier_verified',
     documentationUrl: 'https://platform.openai.com/pricing',
-    note: 'Identifier verified; endpoint/capability verification must be recorded before live enablement.',
+    note: 'Identifier verified in official pricing; Responses API capability verification remains an explicit live-enable gate.',
   },
   {
     task: 'recommendation_reviewer',
@@ -31,8 +31,8 @@ export const modelAssignments: ModelAssignment[] = [
     provider: 'anthropic',
     requestedIdentifier: 'claude-fable-5-1',
     documentation: 'unverified',
-    documentationUrl: 'https://docs.anthropic.com/en/docs/about-claude/model-deprecations',
-    note: 'Exact requested identifier was not found in current official model status; keep unavailable.',
+    documentationUrl: 'https://docs.anthropic.com/en/docs/about-claude/models',
+    note: 'Exact requested identifier is not present in current official documentation. Adapter is implemented but live routing stays blocked; no silent substitution.',
   },
   {
     task: 'multimodal_extraction',

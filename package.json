@@ -34,7 +34,8 @@
     "compose:down": "docker compose down -v",
     "compose:logs": "docker compose logs -f web outbox consumer ai-worker",
     "k8s:render": "kubectl kustomize deploy/kubernetes/overlays/production",
-    "dev:ai-worker": "npm run build:packages && npm run dev -w @easyinsights/ai-worker"
+    "dev:ai-worker": "npm run build:packages && npm run dev -w @easyinsights/ai-worker",
+    "ai:verify-providers": "tsx scripts/ai/verify-providers.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
