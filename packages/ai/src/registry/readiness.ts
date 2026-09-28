@@ -42,7 +42,16 @@ export function routeReadiness(task: AiTask, env: Env = process.env): RouteReadi
       ? assignment.documentation === 'verified' ||
         (assignment.documentation === 'identifier_verified' && truthy(env.AI_OPENAI_DOCS_VERIFIED))
       : assignment.documentation === 'verified';
-  const implemented = ['analyst','recommendation_reviewer','multimodal_extraction','embedding','reranking','call_transcription','live_voice','creative_image'].includes(task);
+  const implemented = [
+    'analyst',
+    'recommendation_reviewer',
+    'multimodal_extraction',
+    'embedding',
+    'reranking',
+    'call_transcription',
+    'live_voice',
+    'creative_image',
+  ].includes(task);
   if (!implemented) reasons.push('Execution adapter is not implemented in this delivery slice.');
   if (hosted && !docs)
     reasons.push('Exact documentation/endpoint capability verification is incomplete.');

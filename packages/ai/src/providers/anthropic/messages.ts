@@ -46,9 +46,7 @@ export async function runAnthropicReviewer(input: {
       });
     } catch (error) {
       throw new ProviderExecutionError(
-        error instanceof Error
-          ? error.message
-          : 'Anthropic request failed before acknowledgement.',
+        error instanceof Error ? error.message : 'Anthropic request failed before acknowledgement.',
         true,
       );
     }

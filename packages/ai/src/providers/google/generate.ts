@@ -17,9 +17,7 @@ async function generate(input: {
     let response: Response;
     try {
       response = await fetch(
-        'https://generativelanguage.googleapis.com/v1beta/models/' +
-          encoded +
-          ':generateContent',
+        'https://generativelanguage.googleapis.com/v1beta/models/' + encoded + ':generateContent',
         {
           method: 'POST',
           signal: controller.signal,
@@ -40,16 +38,16 @@ async function generate(input: {
             ],
             generationConfig: {
               temperature: 0,
-              ...(input.responseModalities
-                ? { responseModalities: input.responseModalities }
-                : {}),
+              ...(input.responseModalities ? { responseModalities: input.responseModalities } : {}),
             },
           }),
         },
       );
     } catch (error) {
       throw new ProviderExecutionError(
-        error instanceof Error ? error.message : 'Google model request failed before acknowledgement.',
+        error instanceof Error
+          ? error.message
+          : 'Google model request failed before acknowledgement.',
         true,
       );
     }

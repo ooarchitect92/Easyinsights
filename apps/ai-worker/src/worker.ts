@@ -76,27 +76,25 @@ async function claim(jobId: string, scope: TenantScope) {
     if (!claimable) return null;
     const fencingToken = Number(current.fencingToken || 0) + 1;
     const leaseUntil = new Date(Date.now() + config.aiLeaseSeconds * 1000);
-    const update = await db
-      .collection('ai_jobs')
-      .updateOne(
-        {
-          ...tenantFilter(scope),
-          id: jobId,
-          status: current.status,
-          fencingToken: Number(current.fencingToken || 0),
+    const update = await db.collection('ai_jobs').updateOne(
+      {
+        ...tenantFilter(scope),
+        id: jobId,
+        status: current.status,
+        fencingToken: Number(current.fencingToken || 0),
+      },
+      {
+        $set: {
+          status: 'running',
+          workerId,
+          leaseUntil,
+          startedAt: current.startedAt || now,
+          updatedAt: now,
         },
-        {
-          $set: {
-            status: 'running',
-            workerId,
-            leaseUntil,
-            startedAt: current.startedAt || now,
-            updatedAt: now,
-          },
-          $inc: { fencingToken: 1, attempt: 1 },
-        },
-        { session },
-      );
+        $inc: { fencingToken: 1, attempt: 1 },
+      },
+      { session },
+    );
     if (update.modifiedCount !== 1) return null;
     const job: any = await db
       .collection('ai_jobs')
@@ -115,36 +113,32 @@ async function finalize(job: any, fencingToken: number, outcome: any) {
     };
     const now = new Date();
     if (outcome.status === 'completed') {
-      const updated = await db
-        .collection('ai_jobs')
-        .updateOne(
-          filter,
-          {
-            $set: {
-              status: 'completed',
-              result: outcome.result,
-              resolvedModel: outcome.result?.resolvedModel || job.requestedModel,
-              completedAt: now,
-              updatedAt: now,
-            },
-            $unset: { leaseUntil: '', workerId: '' },
+      const updated = await db.collection('ai_jobs').updateOne(
+        filter,
+        {
+          $set: {
+            status: 'completed',
+            result: outcome.result,
+            resolvedModel: outcome.result?.resolvedModel || job.requestedModel,
+            completedAt: now,
+            updatedAt: now,
           },
-          { session },
-        );
+          $unset: { leaseUntil: '', workerId: '' },
+        },
+        { session },
+      );
       if (updated.modifiedCount !== 1)
         throw new Error('AI job fencing check failed during completion.');
-      await db
-        .collection('ai_usage_reservations')
-        .updateOne(
-          {
-            ...tenantFilter({ organizationId: job.organizationId, workspaceId: job.workspaceId }),
-            jobId: job.id,
-          },
-          {
-            $set: { status: 'reconciled', usage: outcome.result?.usage || null, reconciledAt: now },
-          },
-          { session },
-        );
+      await db.collection('ai_usage_reservations').updateOne(
+        {
+          ...tenantFilter({ organizationId: job.organizationId, workspaceId: job.workspaceId }),
+          jobId: job.id,
+        },
+        {
+          $set: { status: 'reconciled', usage: outcome.result?.usage || null, reconciledAt: now },
+        },
+        { session },
+      );
       await enqueueEvent(
         db,
         {
@@ -160,32 +154,28 @@ async function finalize(job: any, fencingToken: number, outcome: any) {
       );
       return;
     }
-    const updated = await db
-      .collection('ai_jobs')
-      .updateOne(
-        filter,
-        {
-          $set: {
-            status: 'blocked',
-            blockReason: outcome.reason,
-            completedAt: now,
-            updatedAt: now,
-          },
-          $unset: { leaseUntil: '', workerId: '' },
+    const updated = await db.collection('ai_jobs').updateOne(
+      filter,
+      {
+        $set: {
+          status: 'blocked',
+          blockReason: outcome.reason,
+          completedAt: now,
+          updatedAt: now,
         },
-        { session },
-      );
+        $unset: { leaseUntil: '', workerId: '' },
+      },
+      { session },
+    );
     if (updated.modifiedCount !== 1) throw new Error('AI job fencing check failed during block.');
-    await db
-      .collection('ai_usage_reservations')
-      .updateOne(
-        {
-          ...tenantFilter({ organizationId: job.organizationId, workspaceId: job.workspaceId }),
-          jobId: job.id,
-        },
-        { $set: { status: 'released', reconciledAt: now } },
-        { session },
-      );
+    await db.collection('ai_usage_reservations').updateOne(
+      {
+        ...tenantFilter({ organizationId: job.organizationId, workspaceId: job.workspaceId }),
+        jobId: job.id,
+      },
+      { $set: { status: 'released', reconciledAt: now } },
+      { session },
+    );
   });
 }
 
@@ -200,38 +190,34 @@ async function markProviderOutcomeUnknown(
       workspaceId: String(job.workspaceId),
     };
     const now = new Date();
-    await db
-      .collection('ai_provider_requests')
-      .insertOne(
-        {
-          id: 'aipr_' + opaqueToken(12),
-          ...scope,
-          jobId: job.id,
-          provider: job.provider,
-          requestedModel: job.requestedModel,
+    await db.collection('ai_provider_requests').insertOne(
+      {
+        id: 'aipr_' + opaqueToken(12),
+        ...scope,
+        jobId: job.id,
+        provider: job.provider,
+        requestedModel: job.requestedModel,
+        providerRequestId: error.providerRequestId || null,
+        outcome: 'unknown',
+        createdAt: now,
+        expiresAt: retentionDate(config.runTtlDays),
+      },
+      { session },
+    );
+    await db.collection('ai_jobs').updateOne(
+      { ...tenantFilter(scope), id: job.id, status: 'running', fencingToken },
+      {
+        $set: {
+          status: 'outcome_unknown',
+          error: error.message,
           providerRequestId: error.providerRequestId || null,
-          outcome: 'unknown',
-          createdAt: now,
-          expiresAt: retentionDate(config.runTtlDays),
+          completedAt: now,
+          updatedAt: now,
         },
-        { session },
-      );
-    await db
-      .collection('ai_jobs')
-      .updateOne(
-        { ...tenantFilter(scope), id: job.id, status: 'running', fencingToken },
-        {
-          $set: {
-            status: 'outcome_unknown',
-            error: error.message,
-            providerRequestId: error.providerRequestId || null,
-            completedAt: now,
-            updatedAt: now,
-          },
-          $unset: { leaseUntil: '', workerId: '' },
-        },
-        { session },
-      );
+        $unset: { leaseUntil: '', workerId: '' },
+      },
+      { session },
+    );
     await db
       .collection('ai_usage_reservations')
       .updateOne(
@@ -293,26 +279,24 @@ async function processJob(jobId: string, scope: TenantScope) {
         workspaceId: String(job.workspaceId),
       };
       const now = new Date();
-      await db
-        .collection('ai_jobs')
-        .updateOne(
-          {
-            ...tenantFilter(scope),
-            id: job.id,
-            status: 'running',
-            fencingToken: claimed.fencingToken,
+      await db.collection('ai_jobs').updateOne(
+        {
+          ...tenantFilter(scope),
+          id: job.id,
+          status: 'running',
+          fencingToken: claimed.fencingToken,
+        },
+        {
+          $set: {
+            status: 'failed',
+            error: error instanceof Error ? error.message : String(error),
+            completedAt: now,
+            updatedAt: now,
           },
-          {
-            $set: {
-              status: 'failed',
-              error: error instanceof Error ? error.message : String(error),
-              completedAt: now,
-              updatedAt: now,
-            },
-            $unset: { leaseUntil: '', workerId: '' },
-          },
-          { session },
-        );
+          $unset: { leaseUntil: '', workerId: '' },
+        },
+        { session },
+      );
       await db
         .collection('ai_usage_reservations')
         .updateOne(

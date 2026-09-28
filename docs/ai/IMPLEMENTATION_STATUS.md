@@ -31,7 +31,6 @@ Missing credentials block live qualification, not implementation. Hosted routes 
 - The AI worker sends Kafka heartbeats while long execution is running and renews its MongoDB lease under the active fencing token.
 - An expired `running` lease is treated as an externally ambiguous outcome and moved to `outcome_unknown` for reconciliation instead of blindly executing the provider call again.
 
-
 ## Hosted-provider adapter expansion — 2026-09-28
 
 - Added an Anthropic Messages adapter for the exact requested recommendation reviewer identifier. The adapter is implemented, but the route remains blocked because `claude-fable-5-1` is not present in current official Anthropic model documentation; no substitute is selected.
