@@ -92,3 +92,21 @@ jobs:
           tags: easyinsights-ai-worker:ci
           cache-from: type=gha,scope=ai-worker
           cache-to: type=gha,mode=max,scope=ai-worker
+
+
+  format-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.14.0
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: Render Prettier patch
+        shell: bash
+        run: |
+          npm run format
+          git diff --no-ext-diff --text
