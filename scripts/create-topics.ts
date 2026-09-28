@@ -13,6 +13,7 @@ const topics = [
   'easyinsights.commands.audience',
   'easyinsights.commands.workflow',
   'easyinsights.commands.agent',
+  'easyinsights.commands.ai',
   'easyinsights.commands.connector',
   'easyinsights.commands.activation',
   'easyinsights.commands.report',

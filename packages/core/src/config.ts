@@ -43,6 +43,18 @@ export const config = {
   aiApiBaseUrl: process.env.AI_API_BASE_URL,
   aiApiKey: process.env.AI_API_KEY,
   aiModel: process.env.AI_MODEL,
+  aiHostedRoutesEnabled: boolean('AI_HOSTED_ROUTES_ENABLED', false),
+  aiLeaseSeconds: integer('AI_JOB_LEASE_SECONDS', 120),
+  aiDeadlineSeconds: integer('AI_JOB_DEADLINE_SECONDS', 90),
+  openAiApiKey: process.env.OPENAI_API_KEY,
+  openAiAccessVerified: boolean('AI_OPENAI_ACCESS_VERIFIED', false),
+  openAiDocsVerified: boolean('AI_OPENAI_DOCS_VERIFIED', false),
+  anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+  anthropicAccessVerified: boolean('AI_ANTHROPIC_ACCESS_VERIFIED', false),
+  googleApiKey: process.env.GOOGLE_API_KEY,
+  googleAccessVerified: boolean('AI_GOOGLE_ACCESS_VERIFIED', false),
+  voyageApiKey: process.env.VOYAGE_API_KEY,
+  voyageAccessVerified: boolean('AI_VOYAGE_ACCESS_VERIFIED', false),
 } as const;
 export function retentionDate(days: number): Date {
   return new Date(Date.now() + days * 24 * 60 * 60 * 1000);

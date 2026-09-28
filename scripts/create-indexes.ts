@@ -178,6 +178,24 @@ const definitions: Record<
     { keys: { id: 1 }, options: { unique: true } },
     { keys: { organizationId: 1, workspaceId: 1, status: 1, severity: 1, createdAt: -1 } },
   ],
+  ai_jobs: [
+    { keys: { id: 1 }, options: { unique: true } },
+    { keys: { organizationId: 1, workspaceId: 1, status: 1, createdAt: -1 } },
+    { keys: { status: 1, leaseUntil: 1 } },
+  ],
+  ai_usage_reservations: [
+    { keys: { id: 1 }, options: { unique: true } },
+    { keys: { organizationId: 1, workspaceId: 1, jobId: 1 }, options: { unique: true } },
+    { keys: { status: 1, createdAt: -1 } },
+  ],
+  ai_provider_requests: [
+    { keys: { id: 1 }, options: { unique: true } },
+    { keys: { organizationId: 1, workspaceId: 1, jobId: 1, createdAt: -1 } },
+  ],
+  ai_model_registry: [
+    { keys: { task: 1 }, options: { unique: true } },
+    { keys: { provider: 1, requestedIdentifier: 1 } },
+  ],
   audit_logs: [
     { keys: { id: 1 }, options: { unique: true } },
     { keys: { organizationId: 1, workspaceId: 1, sequence: 1 }, options: { unique: true } },

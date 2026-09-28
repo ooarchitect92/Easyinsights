@@ -45,6 +45,13 @@ export const permissions = [
   'billing:read',
   'billing:write',
   'audit:read',
+  'ai:read',
+  'ai:run',
+  'ai:train',
+  'ai:evaluate',
+  'ai:promote',
+  'ai:provider:manage',
+  'ai:activation:approve',
   'platform:admin',
 ] as const;
 export const permissionSchema = z.enum(permissions);
@@ -306,3 +313,40 @@ export interface ApiFailure {
   error: { code: string; message: string; details?: unknown };
   meta: { requestId: string; generatedAt: string };
 }
+
+
+export const aiTaskSchema = z.enum([
+  'analyst','recommendation_reviewer','multimodal_extraction','embedding','reranking',
+  'call_transcription','live_voice','creative_image','lead_qualification','paid_conversion',
+  'customer_churn','future_customer_value','forecast_primary','forecast_challenger',
+  'forecast_baseline','marketing_mix','incrementality','anomaly_detection',
+  'behavioral_segments','offer_ranking','probability_calibration',
+]);
+export type AiTask = z.infer<typeof aiTaskSchema>;
+
+export const aiJobStatusSchema = z.enum([
+  'queued','claimed','running','completed','blocked','failed','outcome_unknown','cancelled',
+]);
+export type AiJobStatus = z.infer<typeof aiJobStatusSchema>;
+
+export const aiAnalysisRequestSchema = z.object({
+  prompt: z.string().min(2).max(10000),
+  context: z.record(z.unknown()).default({}),
+  task: z.literal('analyst').default('analyst'),
+});
+export type AiAnalysisRequest = z.infer<typeof aiAnalysisRequestSchema>;
+
+export const aiResultMetadataSchema = z.object({
+  runId: z.string().min(1),
+  task: aiTaskSchema,
+  status: aiJobStatusSchema,
+  requestedModel: z.string().min(1),
+  resolvedModel: z.string().nullable().optional(),
+  sourceSnapshotId: z.string().min(1),
+  schemaVersion: z.string().min(1),
+  promptVersion: z.string().min(1).optional(),
+  warnings: z.array(z.string()).default([]),
+  evidenceIds: z.array(z.string()).default([]),
+  createdAt: z.string().datetime(),
+  completedAt: z.string().datetime().optional(),
+});

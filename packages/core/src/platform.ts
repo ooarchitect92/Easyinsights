@@ -100,6 +100,13 @@ const rolePermissions: Record<Role, Permission[]> = {
     'billing:read',
     'billing:write',
     'audit:read',
+    'ai:read',
+    'ai:run',
+    'ai:train',
+    'ai:evaluate',
+    'ai:promote',
+    'ai:provider:manage',
+    'ai:activation:approve',
     'platform:admin',
   ],
   organization_admin: [
@@ -134,6 +141,13 @@ const rolePermissions: Record<Role, Permission[]> = {
     'billing:read',
     'billing:write',
     'audit:read',
+    'ai:read',
+    'ai:run',
+    'ai:train',
+    'ai:evaluate',
+    'ai:promote',
+    'ai:provider:manage',
+    'ai:activation:approve',
   ],
   workspace_admin: [
     'workspace:read',
@@ -164,6 +178,12 @@ const rolePermissions: Record<Role, Permission[]> = {
     'report:write',
     'billing:read',
     'audit:read',
+    'ai:read',
+    'ai:run',
+    'ai:train',
+    'ai:evaluate',
+    'ai:promote',
+    'ai:activation:approve',
   ],
   marketer: [
     'workspace:read',
@@ -184,6 +204,8 @@ const rolePermissions: Record<Role, Permission[]> = {
     'activation:write',
     'report:read',
     'report:write',
+    'ai:read',
+    'ai:run',
   ],
   analyst: [
     'workspace:read',
@@ -198,6 +220,9 @@ const rolePermissions: Record<Role, Permission[]> = {
     'agent:execute',
     'report:read',
     'report:write',
+    'ai:read',
+    'ai:run',
+    'ai:evaluate',
   ],
   sales: [
     'workspace:read',
@@ -230,6 +255,7 @@ const rolePermissions: Record<Role, Permission[]> = {
     'activation:read',
     'report:read',
     'billing:read',
+    'ai:read',
   ],
 };
 export function permissionsForRoles(roles: Role[]): Permission[] {
