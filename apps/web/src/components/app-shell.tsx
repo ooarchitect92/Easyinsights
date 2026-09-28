@@ -60,6 +60,13 @@ const groups = [
     ],
   },
   {
+    label: 'Intelligence',
+    items: [
+      ['/app/ai/analysis', 'AI analyst', Bot],
+      ['/app/ai', 'AI administration', Settings],
+    ],
+  },
+  {
     label: 'Automation',
     items: [
       ['/app/automation/agents', 'Agents', Bot],

@@ -6,8 +6,10 @@ RUN apk add --no-cache libc6-compat
 COPY package.json package-lock.json* ./
 COPY apps/web/package.json apps/web/package.json
 COPY apps/worker/package.json apps/worker/package.json
+COPY apps/ai-worker/package.json apps/ai-worker/package.json
 COPY packages/contracts/package.json packages/contracts/package.json
 COPY packages/core/package.json packages/core/package.json
+COPY packages/ai/package.json packages/ai/package.json
 RUN --mount=type=cache,target=/root/.npm npm ci --include=dev
 
 FROM dependencies AS build
@@ -44,3 +46,21 @@ USER node
 EXPOSE 8081
 ENTRYPOINT ["/sbin/tini","--"]
 CMD ["node","apps/worker/dist/index.js"]
+
+FROM node:22.14-alpine AS ai-worker
+WORKDIR /app
+ENV NODE_ENV=production
+RUN apk add --no-cache tini && chown -R node:node /app
+COPY --from=build --chown=node:node /app/node_modules ./node_modules
+COPY --from=build --chown=node:node /app/apps/ai-worker/package.json ./apps/ai-worker/package.json
+COPY --from=build --chown=node:node /app/apps/ai-worker/dist ./apps/ai-worker/dist
+COPY --from=build --chown=node:node /app/packages/contracts/package.json ./packages/contracts/package.json
+COPY --from=build --chown=node:node /app/packages/contracts/dist ./packages/contracts/dist
+COPY --from=build --chown=node:node /app/packages/core/package.json ./packages/core/package.json
+COPY --from=build --chown=node:node /app/packages/core/dist ./packages/core/dist
+COPY --from=build --chown=node:node /app/packages/ai/package.json ./packages/ai/package.json
+COPY --from=build --chown=node:node /app/packages/ai/dist ./packages/ai/dist
+USER node
+EXPOSE 8082
+ENTRYPOINT ["/sbin/tini","--"]
+CMD ["node","apps/ai-worker/dist/index.js"]

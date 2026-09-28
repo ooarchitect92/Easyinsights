@@ -150,3 +150,8 @@ Before enabling any live activation:
 ## License and naming
 
 No third-party proprietary code, private API credential or copied visual design is included. Confirm product naming, trademarks and licensing before commercial release.
+
+
+## Multi-model intelligence implementation
+
+The governed intelligence implementation is now active on `feature/multi-model-intelligence`. The first end-to-end slice adds exact task/model registration, provider readiness states, tenant-scoped analysis jobs, a dedicated AI execution worker with lease/fencing semantics, AI administration/analysis UI and deployment assets. Hosted provider execution is disabled by default until documentation and live account access are separately verified. See `docs/ai/IMPLEMENTATION_STATUS.md`.
