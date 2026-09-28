@@ -1,10 +1,25 @@
 {
-  "name":"@easyinsights/ai-worker",
-  "version":"1.0.0",
-  "private":true,
-  "type":"module",
-  "main":"dist/index.js",
-  "scripts":{"dev":"tsx watch src/index.ts","build":"tsc -p tsconfig.json","start":"node dist/index.js","typecheck":"tsc -p tsconfig.json --noEmit","test":"vitest run"},
-  "dependencies":{"@easyinsights/ai":"1.0.0","@easyinsights/contracts":"1.0.0","@easyinsights/core":"1.0.0","kafkajs":"^2.2.4"},
-  "devDependencies":{"tsx":"^4.21.0","typescript":"^5.9.3","vitest":"^4.0.14"}
+  "name": "@easyinsights/ai-worker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@easyinsights/ai": "1.0.0",
+    "@easyinsights/contracts": "1.0.0",
+    "@easyinsights/core": "1.0.0",
+    "kafkajs": "^2.2.4"
+  },
+  "devDependencies": {
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.14"
+  }
 }
